@@ -1,48 +1,78 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Image,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function LoadingScreen() {
+  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current; // For the bar
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // 1. Logo Fade In
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
+    // Logo entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-    // 2. Progress Bar Animation (Starting to End)
-    // We set this to 4500ms so it finishes just before the app switches
+    // Bottom progress bar animation (5 seconds)
     Animated.timing(progressAnim, {
       toValue: 1,
-      duration: 4500,
-      useNativeDriver: false, // Width doesn't support native driver
+      duration: 5000,
+      useNativeDriver: false,
     }).start();
   }, []);
 
-  // Interpolate the 0-1 value into a percentage width
-  const progressWidth = progressAnim.interpolate({
+  const progressBarWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
 
   return (
     <View style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim, alignItems: "center" }}>
-        <Text style={styles.logoText}>Bulking_App</Text>
+      <StatusBar barStyle="light-content" />
 
-        {/* The Track (Grey Background) */}
-        <View style={styles.loaderLineContainer}>
-          {/* The Filling Bar (Blue) */}
-          <Animated.View
-            style={[styles.progressFill, { width: progressWidth }]}
+      {/* 3. The Animated Logo Area */}
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+          alignItems: "center",
+        }}
+      >
+        <View style={styles.logoWrapper}>
+          <Image
+            source={require("../../assets/logo.jpeg")} // Make sure path is correct
+            style={styles.logoImage}
+            resizeMode="contain"
           />
         </View>
+        <Text style={styles.appName}>
+          Mass<Text style={styles.highlight}>Flow</Text>
+        </Text>
       </Animated.View>
 
-      <Text style={styles.footerText}>FUEL YOUR GAINS..</Text>
+      {/* Loading Bar at bottom */}
+      <View style={styles.loaderContainer}>
+        <View style={styles.track}>
+          <Animated.View style={[styles.fill, { width: progressBarWidth }]} />
+        </View>
+        <Text style={styles.loadingText}>PREPARING YOUR WORKOUT...</Text>
+      </View>
     </View>
   );
 }
@@ -54,31 +84,44 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  logoText: {
+  logoWrapper: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+    // Adds a glow effect matching the logo colors
+    shadowColor: "#00FFCC",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  logoImage: { width: "100%", height: "100%", borderRadius: 80 },
+  appName: {
     color: "white",
     fontSize: 42,
     fontWeight: "bold",
     letterSpacing: -1,
   },
-  loaderLineContainer: {
-    height: 4,
-    width: 200,
-    backgroundColor: "#1C1C1E", // Dark track
-    marginTop: 30,
-    borderRadius: 10,
-    overflow: "hidden", // Ensures the blue bar stays inside
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#007AFF", // Blue color
-    borderRadius: 10,
-  },
-  footerText: {
+  highlight: { color: "#00FFCC" }, // Neon green/blue from logo
+  loaderContainer: {
     position: "absolute",
-    bottom: 50,
-    color: "#cfcdcd",
-    fontSize: 12,
+    bottom: 100,
+    width: "80%",
+    alignItems: "center",
+  },
+  track: {
+    width: "100%",
+    height: 4,
+    backgroundColor: "#1C1C1E",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  fill: { height: "100%", backgroundColor: "#00FFCC" },
+  loadingText: {
+    color: "#444",
+    fontSize: 10,
+    marginTop: 15,
     letterSpacing: 3,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
 });
