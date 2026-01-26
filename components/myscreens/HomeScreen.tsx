@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,12 +12,13 @@ import {
   View,
 } from "react-native";
 
-export default function HomeScreen() {
-  const isFocused = useIsFocused(); // Refresh data when user returns to this screen
+export default function HomeScreen({ onEditTask }: any) {
+  const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [allTaskGroups, setAllTaskGroups] = useState([]);
+  const [allTaskGroups, setAllTaskGroups] = useState<any[]>([]);
 
+  // Refresh data every time the screen comes into focus
   useEffect(() => {
     if (isFocused) {
       loadTasks();
@@ -32,11 +34,12 @@ export default function HomeScreen() {
     }
   };
 
-  // Helper to normalize dates for comparison
-  const getTaskCategory = (taskDateStr: string) => {
+  // CORE LOGIC: Determines which tab a task belongs to based on the ISO date string
+  const getTaskCategory = (taskISO: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const taskDate = new Date(taskDateStr);
+
+    const taskDate = new Date(taskISO);
     taskDate.setHours(0, 0, 0, 0);
 
     if (taskDate.getTime() === today.getTime()) return "Today";
@@ -44,22 +47,54 @@ export default function HomeScreen() {
     return "Future";
   };
 
+  const deleteGroup = async (id: string) => {
+    Alert.alert("Delete Task", "Are you sure you want to delete this group?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const updated = allTaskGroups.filter((g) => g.id !== id);
+          setAllTaskGroups(updated);
+          await AsyncStorage.setItem("@task_groups", JSON.stringify(updated));
+        },
+      },
+    ]);
+  };
+
+  const toggleComplete = async (id: string) => {
+    const updated = allTaskGroups.map((g) =>
+      g.id === id ? { ...g, completed: !g.completed } : g,
+    );
+    setAllTaskGroups(updated);
+    await AsyncStorage.setItem("@task_groups", JSON.stringify(updated));
+  };
+
   const filteredTasks = allTaskGroups.filter((group) => {
     const category = getTaskCategory(group.date);
 
-    // 1. Filter by Tab
+    // 1. Tab Filtering Logic
     let matchesTab = false;
-    if (activeTab === "All")
+    if (activeTab === "All") {
+      // "All" shows everything from the past up to today, but NOT the future
       matchesTab = category === "Today" || category === "Previous";
-    else if (activeTab === "Previous") matchesTab = category === "Previous";
-    else if (activeTab === "Today") matchesTab = category === "Today";
-    else if (activeTab === "Future") matchesTab = category === "Future";
-    else if (activeTab === "Completed") matchesTab = group.completed; // Logic for completion can be added later
+    } else if (activeTab === "Previous") {
+      matchesTab = category === "Previous";
+    } else if (activeTab === "Today") {
+      matchesTab = category === "Today";
+    } else if (activeTab === "Future") {
+      matchesTab = category === "Future";
+    } else if (activeTab === "Completed") {
+      matchesTab = group.completed === true;
+    }
 
-    // 2. Filter by Search (Title or Date)
+    // 2. Search Filtering Logic (Search within the selected section only)
     const matchesSearch =
       group.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      group.date.toLowerCase().includes(searchQuery.toLowerCase());
+      new Date(group.date)
+        .toDateString()
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
     return matchesTab && matchesSearch;
   });
@@ -71,7 +106,7 @@ export default function HomeScreen() {
         <View style={styles.searchBar}>
           <Feather name="search" size={18} color="#666" />
           <TextInput
-            placeholder="Search tasks..."
+            placeholder="Search in this section..."
             placeholderTextColor="#666"
             style={styles.searchInput}
             value={searchQuery}
@@ -83,7 +118,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs Navigation */}
       <View style={styles.tabRow}>
         {["All", "Completed", "Previous", "Today", "Future"].map((tab) => (
           <TouchableOpacity
@@ -110,45 +145,72 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>{activeTab} Tasks</Text>
 
         {filteredTasks.length === 0 ? (
-          <Text style={styles.emptyText}>No tasks found in this section.</Text>
+          <View style={styles.emptyContainer}>
+            <Feather name="inbox" size={40} color="#333" />
+            <Text style={styles.emptyText}>No tasks found in {activeTab}</Text>
+          </View>
         ) : (
           filteredTasks.map((group) => (
             <View key={group.id} style={styles.taskCard}>
               <View style={styles.taskHeader}>
-                <View style={styles.iconCircle}>
+                {/* Completion Icon Circle */}
+                <TouchableOpacity
+                  style={[
+                    styles.iconCircle,
+                    group.completed && styles.iconCircleChecked,
+                  ]}
+                  onPress={() => toggleComplete(group.id)}
+                >
                   <Feather
-                    name={
-                      getTaskCategory(group.date) === "Future"
-                        ? "calendar"
-                        : "clock"
-                    }
+                    name={group.completed ? "check" : "calendar"}
                     size={16}
-                    color="#007AFF"
+                    color={group.completed ? "#34C759" : "#007AFF"}
                   />
-                </View>
+                </TouchableOpacity>
+
+                {/* Task Details */}
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.taskTitle}>{group.title}</Text>
+                  <Text
+                    style={[
+                      styles.taskTitle,
+                      group.completed && styles.textCompleted,
+                    ]}
+                  >
+                    {group.title}
+                  </Text>
                   <Text style={styles.taskSub}>
-                    {group.date} • {group.todos.length} items
+                    {new Date(group.date).toDateString()} • {group.todos.length}{" "}
+                    items
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.radio}>
-                  {group.completed && (
-                    <Feather name="check" size={12} color="white" />
-                  )}
-                </TouchableOpacity>
+
+                {/* Actions: Edit and Delete */}
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    onPress={() => onEditTask(group)}
+                    style={styles.actionBtn}
+                  >
+                    <Feather name="edit-2" size={18} color="#AAA" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => deleteGroup(group.id)}
+                    style={styles.actionBtn}
+                  >
+                    <Feather name="trash-2" size={18} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              {/* Nested Todo Preview */}
+              {/* Nested Todos Preview */}
               <View style={styles.todoPreview}>
-                {group.todos.slice(0, 2).map((todo, idx) => (
+                {group.todos.slice(0, 2).map((todo: any, idx: number) => (
                   <Text key={idx} style={styles.todoText}>
                     • {todo.name}
                   </Text>
                 ))}
                 {group.todos.length > 2 && (
                   <Text style={styles.moreText}>
-                    +{group.todos.length - 2} more...
+                    +{group.todos.length - 2} more items
                   </Text>
                 )}
               </View>
@@ -213,19 +275,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  iconCircleChecked: { backgroundColor: "#34C75920" },
   taskTitle: { color: "white", fontWeight: "bold", fontSize: 16 },
+  textCompleted: { textDecorationLine: "line-through", color: "#666" },
   taskSub: { color: "#666", fontSize: 12, marginTop: 2 },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#333",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  actionRow: { flexDirection: "row" },
+  actionBtn: { marginLeft: 15 },
   todoPreview: { marginTop: 12, paddingLeft: 48 },
   todoText: { color: "#AAA", fontSize: 13, marginBottom: 2 },
   moreText: { color: "#007AFF", fontSize: 12, marginTop: 4 },
-  emptyText: { color: "#444", textAlign: "center", marginTop: 50 },
+  emptyContainer: { alignItems: "center", marginTop: 60 },
+  emptyText: { color: "#444", marginTop: 10, fontSize: 16 },
 });

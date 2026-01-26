@@ -1,6 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +11,7 @@ import {
 } from "react-native";
 
 export default function FoodScreen() {
+  const [loading, setLoading] = useState(true);
   const [dietPlan, setDietPlan] = useState([
     {
       period: "After Bed",
@@ -236,31 +239,43 @@ export default function FoodScreen() {
     },
   ]);
 
-  // MIDNIGHT RESET LOGIC
   useEffect(() => {
-    const now = new Date();
-    const night = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + 1,
-      0,
-      0,
-      0,
-    );
-    const msToMidnight = night.getTime() - now.getTime();
-
-    const timer = setTimeout(() => {
-      setDietPlan((prev) =>
-        prev.map((section) => ({
-          ...section,
-          completed: false,
-          items: section.items.map((item) => ({ ...item, done: false })),
-        })),
-      );
-    }, msToMidnight);
-
-    return () => clearTimeout(timer);
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      const todayDate = new Date().toDateString();
+      const savedDate = await AsyncStorage.getItem("@last_food_date");
+      const savedPlan = await AsyncStorage.getItem("@diet_plan_state");
+
+      // Check if it's a new day
+      if (savedDate !== todayDate) {
+        // It's a new day! Keep default plan (all unchecked)
+        await AsyncStorage.setItem("@last_food_date", todayDate);
+        // Clear old progress
+        await AsyncStorage.removeItem("@diet_plan_state");
+      } else if (savedPlan) {
+        // Same day, load previous selections
+        setDietPlan(JSON.parse(savedPlan));
+      }
+    } catch (e) {
+      console.log("Error loading food data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveData = async (updatedPlan: any) => {
+    try {
+      await AsyncStorage.setItem(
+        "@diet_plan_state",
+        JSON.stringify(updatedPlan),
+      );
+    } catch (e) {
+      console.log("Error saving food data");
+    }
+  };
 
   const toggleItem = (periodIndex: number, itemId: number) => {
     const updatedPlan = [...dietPlan];
@@ -269,11 +284,12 @@ export default function FoodScreen() {
 
     if (item) {
       item.done = !item.done;
-      // Section is complete if all NON-OPTIONAL items are done
       section.completed = section.items
         .filter((i) => !i.optional)
         .every((i) => i.done);
+
       setDietPlan(updatedPlan);
+      saveData(updatedPlan); // Save to storage immediately
     }
   };
 
@@ -287,14 +303,21 @@ export default function FoodScreen() {
     0,
   );
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* STACKED PROGRESS BARS */}
       <View style={styles.statContainer}>
         <View style={styles.statBox}>
           <View style={styles.labelRow}>
             <Text style={styles.statLabel}>Calories</Text>
-            <Text style={styles.statValue}>{currentKcal}/2600</Text>
+            <Text style={styles.statValue}>{currentKcal}/2600 kcal</Text>
           </View>
           <View style={styles.barBg}>
             <View
@@ -337,7 +360,10 @@ export default function FoodScreen() {
                 <Text style={styles.sectionTime}>{section.time}</Text>
               </View>
               {section.completed && (
-                <Feather name="check-circle" size={20} color="#34C759" />
+                <View style={styles.doneBadge}>
+                  <Feather name="check-circle" size={16} color="#34C759" />
+                  <Text style={styles.doneText}>Done</Text>
+                </View>
               )}
             </View>
 
@@ -352,20 +378,25 @@ export default function FoodScreen() {
                     <Feather name="check" size={14} color="white" />
                   )}
                 </View>
-                <Text
-                  style={[
-                    styles.itemName,
-                    item.done && styles.strikethrough,
-                    item.optional && { color: "#8E8E93" },
-                  ]}
-                >
-                  {item.name}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.itemName,
+                      item.done && styles.strikethrough,
+                      item.optional && { color: "#8E8E93" },
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                  <Text style={styles.itemMeta}>
+                    {item.kcal} kcal • {item.pro}g Protein
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
         ))}
-        <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
     </View>
   );
@@ -420,6 +451,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   checked: { backgroundColor: "#34C759", borderColor: "#34C759" },
-  itemName: { color: "white", fontSize: 15 },
+  itemName: { color: "white", fontSize: 15, fontWeight: "500" },
+  itemMeta: { color: "#555", fontSize: 11, marginTop: 2 },
   strikethrough: { color: "#666", textDecorationLine: "line-through" },
+  doneBadge: { flexDirection: "row", alignItems: "center" },
+  doneText: {
+    color: "#34C759",
+    fontSize: 12,
+    marginLeft: 5,
+    fontWeight: "bold",
+  },
 });
