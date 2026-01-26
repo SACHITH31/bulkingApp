@@ -3,24 +3,24 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function AddTaskScreen({ onGoBack, editTask }: any) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  // Updated state to include description
   const [todos, setTodos] = useState([
     { id: Date.now().toString(), name: "", description: "" },
   ]);
 
-  // If we are editing, fill the fields with existing data
   useEffect(() => {
     if (editTask) {
       setTitle(editTask.title);
@@ -34,9 +34,27 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     if (selectedDate) setDate(selectedDate);
   };
 
+  const addNewTodoField = () => {
+    // Adds both name and description slots
+    setTodos([
+      ...todos,
+      { id: Date.now().toString(), name: "", description: "" },
+    ]);
+  };
+
+  const updateTodo = (
+    index: number,
+    field: "name" | "description",
+    value: string,
+  ) => {
+    const updatedTodos = [...todos];
+    updatedTodos[index] = { ...updatedTodos[index], [field]: value };
+    setTodos(updatedTodos);
+  };
+
   const saveTaskGroup = async () => {
     if (!title.trim()) {
-      Alert.alert("Required", "Please enter a title");
+      Alert.alert("Required", "Please enter a Group Title");
       return;
     }
 
@@ -47,8 +65,8 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       const taskData = {
         id: editTask ? editTask.id : Date.now().toString(),
         title,
-        date: date.toISOString(), // Standard format for perfect filtering
-        todos: todos.filter((t) => t.name.trim() !== ""),
+        date: date.toISOString(),
+        todos: todos.filter((t) => t.name.trim() !== ""), // Only save if name isn't empty
         completed: editTask ? editTask.completed : false,
       };
 
@@ -59,19 +77,27 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       }
 
       await AsyncStorage.setItem("@task_groups", JSON.stringify(tasks));
-      onGoBack();
-    } catch (e) {
-      Alert.alert("Error", "Could not save");
+
+      // Point 4: Show success and redirect
+      Alert.alert("Success", "Task Group saved successfully!", [
+        { text: "OK", onPress: () => onGoBack() },
+      ]);
+    } catch (error) {
+      Alert.alert("Error", "Could not save task");
     }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <TouchableOpacity onPress={onGoBack} style={styles.backBtn}>
-        <Feather name="x" size={24} color="white" />
-      </TouchableOpacity>
-
-      <Text style={styles.header}>{editTask ? "Edit Task" : "New Task"}</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Reduced gap header */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={onGoBack}>
+          <Feather name="x" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerText}>
+          {editTask ? "Edit Task" : "New Task"}
+        </Text>
+      </View>
 
       <TextInput
         style={styles.input}
@@ -93,51 +119,57 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
         <DateTimePicker value={date} mode="date" onChange={onChangeDate} />
       )}
 
-      <Text style={styles.subHeader}>NESTED TODOS</Text>
+      <Text style={styles.subLabel}>NESTED TODOS</Text>
+
       {todos.map((todo, index) => (
         <View key={todo.id} style={styles.todoCard}>
           <TextInput
-            style={styles.todoInput}
+            style={styles.todoNameInput}
             placeholder="Todo Name"
             placeholderTextColor="#666"
             value={todo.name}
-            onChangeText={(v) => {
-              const newTodos = [...todos];
-              newTodos[index].name = v;
-              setTodos(newTodos);
-            }}
+            onChangeText={(v) => updateTodo(index, "name", v)}
+          />
+          {/* Point 2 & 3: Description Field added */}
+          <TextInput
+            style={styles.todoDescInput}
+            placeholder="Description (Optional)"
+            placeholderTextColor="#444"
+            multiline
+            value={todo.description}
+            onChangeText={(v) => updateTodo(index, "description", v)}
           />
         </View>
       ))}
 
-      <TouchableOpacity
-        style={styles.addMore}
-        onPress={() =>
-          setTodos([
-            ...todos,
-            { id: Date.now().toString(), name: "", description: "" },
-          ])
-        }
-      >
-        <Feather name="plus" size={20} color="#007AFF" />
-        <Text style={{ color: "#007AFF", marginLeft: 8 }}>Add Item</Text>
+      <TouchableOpacity style={styles.addBtn} onPress={addNewTodoField}>
+        <Feather name="plus" size={18} color="#007AFF" />
+        <Text style={styles.addBtnText}>Add Item</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.saveBtn} onPress={saveTaskGroup}>
-        <Text style={styles.saveText}>Confirm Task</Text>
+      <TouchableOpacity style={styles.confirmBtn} onPress={saveTaskGroup}>
+        <Text style={styles.confirmBtnText}>Confirm Task</Text>
       </TouchableOpacity>
+
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000", padding: 20 },
-  backBtn: { marginTop: 40, marginBottom: 20 },
-  header: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold",
+  container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
+  // Fixes Point 1: Decreased gap
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10, // Small margin from the app name/status bar
     marginBottom: 20,
+  },
+  headerText: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginLeft: 15,
   },
   input: {
     backgroundColor: "#1C1C1E",
@@ -156,29 +188,36 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   dateText: { color: "white", marginLeft: 12, fontSize: 16 },
-  subHeader: {
-    color: "#666",
+  subLabel: {
+    color: "#8E8E93",
     fontSize: 12,
     fontWeight: "bold",
     marginBottom: 15,
+    textTransform: "uppercase",
   },
   todoCard: {
     backgroundColor: "#1C1C1E",
     padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 15,
+    marginBottom: 12,
     borderLeftWidth: 4,
     borderLeftColor: "#007AFF",
   },
-  todoInput: { color: "white", fontSize: 16 },
-  addMore: { flexDirection: "row", alignItems: "center", padding: 10 },
-  saveBtn: {
+  todoNameInput: { color: "white", fontSize: 16, fontWeight: "600" },
+  todoDescInput: { color: "#AAA", fontSize: 14, marginTop: 8 },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    marginBottom: 20,
+  },
+  addBtnText: { color: "#007AFF", marginLeft: 8, fontWeight: "600" },
+  confirmBtn: {
     backgroundColor: "#007AFF",
     padding: 20,
     borderRadius: 15,
     alignItems: "center",
-    marginTop: 30,
-    marginBottom: 100,
+    marginBottom: 20,
   },
-  saveText: { color: "white", fontSize: 18, fontWeight: "bold" },
+  confirmBtnText: { color: "white", fontSize: 18, fontWeight: "bold" },
 });
