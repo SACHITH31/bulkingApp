@@ -9,79 +9,234 @@ import {
 } from "react-native";
 
 export default function FoodScreen() {
-  // 1. STATE MANAGEMENT: Organizing items by "Period"
   const [dietPlan, setDietPlan] = useState([
     {
       period: "After Bed",
+      time: "5:00 AM",
       completed: false,
-      items: [{ id: 1, name: "1 Glass Water", kcal: 0, pro: 0, done: false }],
+      items: [
+        {
+          id: 1,
+          name: "1 Glass Water",
+          kcal: 0,
+          pro: 0,
+          done: false,
+          optional: false,
+        },
+      ],
     },
     {
       period: "Breakfast",
+      time: "7:30 AM",
       completed: false,
       items: [
-        { id: 2, name: "Milk (250ml)", kcal: 150, pro: 8, done: false },
-        { id: 3, name: "1 Banana", kcal: 100, pro: 1, done: false },
-        { id: 4, name: "10 Almonds", kcal: 70, pro: 2, done: false },
-        { id: 5, name: "40g Oats", kcal: 150, pro: 5, done: false },
+        {
+          id: 2,
+          name: "Milk (250ml)",
+          kcal: 150,
+          pro: 8,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 3,
+          name: "1 Banana",
+          kcal: 100,
+          pro: 1,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 4,
+          name: "10 Almonds",
+          kcal: 70,
+          pro: 2,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 5,
+          name: "40g Oats (Optional)",
+          kcal: 150,
+          pro: 5,
+          done: false,
+          optional: true,
+        },
       ],
     },
     {
       period: "College Snack",
+      time: "10:40 AM",
       completed: false,
       items: [
-        { id: 6, name: "1 Fruit", kcal: 80, pro: 1, done: false },
-        { id: 7, name: "20g Peanuts", kcal: 115, pro: 5, done: false },
+        {
+          id: 6,
+          name: "1 Fruit",
+          kcal: 80,
+          pro: 1,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 7,
+          name: "20g Peanuts (Optional)",
+          kcal: 115,
+          pro: 5,
+          done: false,
+          optional: true,
+        },
       ],
     },
     {
       period: "Lunch",
+      time: "1:00 PM",
       completed: false,
       items: [
-        { id: 8, name: "Rice (Large Portion)", kcal: 350, pro: 6, done: false },
-        { id: 9, name: "Channa Dal", kcal: 180, pro: 12, done: false },
-        { id: 10, name: "1 tsp Ghee", kcal: 90, pro: 0, done: false },
-        { id: 11, name: "Salad", kcal: 40, pro: 1, done: false },
+        {
+          id: 8,
+          name: "Rice (Large Portion)",
+          kcal: 350,
+          pro: 6,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 9,
+          name: "Channa Dal",
+          kcal: 180,
+          pro: 12,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 10,
+          name: "1 tsp Ghee",
+          kcal: 90,
+          pro: 0,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 11,
+          name: "Salad",
+          kcal: 40,
+          pro: 1,
+          done: false,
+          optional: false,
+        },
       ],
     },
     {
       period: "Evening Snack",
+      time: "4:30 PM",
       completed: false,
       items: [
-        { id: 12, name: "1 Banana", kcal: 100, pro: 1, done: false },
-        { id: 13, name: "30g Roasted Chana", kcal: 110, pro: 6, done: false },
+        {
+          id: 12,
+          name: "1 Banana",
+          kcal: 100,
+          pro: 1,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 13,
+          name: "30g Roasted Chana",
+          kcal: 110,
+          pro: 6,
+          done: false,
+          optional: false,
+        },
       ],
     },
     {
       period: "Evening Shake",
+      time: "6:00 PM",
       completed: false,
       items: [
         {
           id: 14,
-          name: "Milk, Banana, Oats, PB",
-          kcal: 400,
-          pro: 25,
+          name: "Milk (250ml)",
+          kcal: 150,
+          pro: 8,
           done: false,
+          optional: false,
+        },
+        {
+          id: 15,
+          name: "1 Banana",
+          kcal: 100,
+          pro: 1,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 16,
+          name: "1 tbsp Peanut Butter",
+          kcal: 90,
+          pro: 4,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 17,
+          name: "Oats (Optional)",
+          kcal: 100,
+          pro: 3,
+          done: false,
+          optional: true,
         },
       ],
     },
     {
       period: "Dinner",
+      time: "7:30 PM",
       completed: false,
       items: [
-        { id: 15, name: "Rice", kcal: 300, pro: 5, done: false },
-        { id: 16, name: "Dal", kcal: 180, pro: 12, done: false },
-        { id: 17, name: "Milk", kcal: 150, pro: 8, done: false },
+        {
+          id: 18,
+          name: "Rice",
+          kcal: 300,
+          pro: 5,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 19,
+          name: "Dal",
+          kcal: 180,
+          pro: 12,
+          done: false,
+          optional: false,
+        },
+        {
+          id: 20,
+          name: "Milk",
+          kcal: 150,
+          pro: 8,
+          done: false,
+          optional: false,
+        },
       ],
     },
     {
       period: "Before Bed",
+      time: "9:30 PM",
       completed: false,
-      items: [{ id: 18, name: "1 Glass Milk", kcal: 130, pro: 6, done: false }],
+      items: [
+        {
+          id: 21,
+          name: "1 Glass Milk",
+          kcal: 130,
+          pro: 6,
+          done: false,
+          optional: false,
+        },
+      ],
     },
   ]);
 
-  // 2. MIDNIGHT RESET LOGIC
+  // MIDNIGHT RESET LOGIC
   useEffect(() => {
     const now = new Date();
     const night = new Date(
@@ -95,7 +250,6 @@ export default function FoodScreen() {
     const msToMidnight = night.getTime() - now.getTime();
 
     const timer = setTimeout(() => {
-      // Reset all items to "false"
       setDietPlan((prev) =>
         prev.map((section) => ({
           ...section,
@@ -108,7 +262,6 @@ export default function FoodScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 3. TOGGLE FUNCTION
   const toggleItem = (periodIndex: number, itemId: number) => {
     const updatedPlan = [...dietPlan];
     const section = updatedPlan[periodIndex];
@@ -116,13 +269,14 @@ export default function FoodScreen() {
 
     if (item) {
       item.done = !item.done;
-      // Auto-check section if all items are done
-      section.completed = section.items.every((i) => i.done);
+      // Section is complete if all NON-OPTIONAL items are done
+      section.completed = section.items
+        .filter((i) => !i.optional)
+        .every((i) => i.done);
       setDietPlan(updatedPlan);
     }
   };
 
-  // 4. CALCULATION
   const allItems = dietPlan.flatMap((p) => p.items);
   const currentKcal = allItems.reduce(
     (sum, i) => (i.done ? sum + i.kcal : sum),
@@ -135,7 +289,7 @@ export default function FoodScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 5. TOP PROGRESS BARS (STACKED) */}
+      {/* STACKED PROGRESS BARS */}
       <View style={styles.statContainer}>
         <View style={styles.statBox}>
           <View style={styles.labelRow}>
@@ -147,7 +301,7 @@ export default function FoodScreen() {
               style={[
                 styles.barFill,
                 {
-                  width: `${(currentKcal / 2600) * 100}%`,
+                  width: `${Math.min((currentKcal / 2600) * 100, 100)}%`,
                   backgroundColor: "#FF9500",
                 },
               ]}
@@ -165,7 +319,7 @@ export default function FoodScreen() {
               style={[
                 styles.barFill,
                 {
-                  width: `${(currentPro / 95) * 100}%`,
+                  width: `${Math.min((currentPro / 95) * 100, 100)}%`,
                   backgroundColor: "#34C759",
                 },
               ]}
@@ -174,14 +328,16 @@ export default function FoodScreen() {
         </View>
       </View>
 
-      {/* 6. SECTIONED LIST */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {dietPlan.map((section, pIdx) => (
           <View key={pIdx} style={styles.sectionWrapper}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{section.period}</Text>
+              <View>
+                <Text style={styles.sectionTitle}>{section.period}</Text>
+                <Text style={styles.sectionTime}>{section.time}</Text>
+              </View>
               {section.completed && (
-                <Feather name="check-circle" size={18} color="#34C759" />
+                <Feather name="check-circle" size={20} color="#34C759" />
               )}
             </View>
 
@@ -197,7 +353,11 @@ export default function FoodScreen() {
                   )}
                 </View>
                 <Text
-                  style={[styles.itemName, item.done && styles.strikethrough]}
+                  style={[
+                    styles.itemName,
+                    item.done && styles.strikethrough,
+                    item.optional && { color: "#8E8E93" },
+                  ]}
                 >
                   {item.name}
                 </Text>
@@ -223,17 +383,19 @@ const styles = StyleSheet.create({
   statLabel: { color: "#8E8E93", fontSize: 14, fontWeight: "600" },
   statValue: { color: "white", fontSize: 14, fontWeight: "bold" },
   barBg: {
-    height: 8,
+    height: 10,
     backgroundColor: "#1C1C1E",
-    borderRadius: 4,
+    borderRadius: 5,
     overflow: "hidden",
   },
-  barFill: { height: "100%", borderRadius: 4 },
+  barFill: { height: "100%", borderRadius: 5 },
   sectionWrapper: {
     backgroundColor: "#1C1C1E",
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#2C2C2E",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -242,15 +404,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: "#333",
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
-  sectionTitle: { color: "#007AFF", fontSize: 16, fontWeight: "bold" },
-  itemRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
+  sectionTitle: { color: "#007AFF", fontSize: 17, fontWeight: "bold" },
+  sectionTime: { color: "#666", fontSize: 12, marginTop: 2 },
+  itemRow: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderSize: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 7,
     borderColor: "#444",
     borderWidth: 2,
     marginRight: 12,
