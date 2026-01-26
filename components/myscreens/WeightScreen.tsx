@@ -1,77 +1,175 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Keyboard,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-export default function WeightScreen() {
-  const [currentWeight, setCurrentWeight] = useState("");
-  const [history, setHistory] = useState([
-    { id: "1", date: "Jan 25", weight: "54.0" },
-  ]);
+export default function WeightScreen({
+  onWeightUpdate,
+}: {
+  onWeightUpdate: (w: string) => void;
+}) {
+  const [currentInput, setCurrentInput] = useState("");
+  const [history, setHistory] = useState([]);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
 
   const targetWeight = 63; // Your Goal
 
-  const addWeight = () => {
-    if (currentWeight) {
-      const newEntry = {
-        id: Math.random().toString(),
-        date: new Date().toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        }),
-        weight: currentWeight,
-      };
-      setHistory([newEntry, ...history]);
-      setCurrentWeight("");
-      Keyboard.dismiss();
+  useEffect(() => {
+    loadWeights();
+  }, []);
+
+  const loadWeights = async () => {
+    try {
+      const saved = await AsyncStorage.getItem("@weight_history");
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        setHistory(parsed);
+        // Fallback to 54 if history is cleared
+        onWeightUpdate(parsed.length > 0 ? parsed[0].weight : "54");
+      } else {
+        onWeightUpdate("54");
+      }
+    } catch (e) {
+      onWeightUpdate("54");
     }
+  };
+
+  const saveWeights = async (data: any) => {
+    try {
+      await AsyncStorage.setItem("@weight_history", JSON.stringify(data));
+    } catch (e) {
+      console.log("Save error");
+    }
+  };
+
+  const addWeight = () => {
+    if (!currentInput || isNaN(parseFloat(currentInput))) return;
+    const newEntry = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      weight: currentInput,
+    };
+    const newHistory = [newEntry, ...history];
+    setHistory(newHistory);
+    saveWeights(newHistory);
+    onWeightUpdate(currentInput);
+    setCurrentInput("");
+    Keyboard.dismiss();
+  };
+
+  const deleteSelected = () => {
+    const newHistory = history.filter(
+      (item) => !selectedItems.includes(item.id),
+    );
+    setHistory(newHistory);
+    saveWeights(newHistory);
+    setSelectedItems([]);
+    setIsDeleteMode(false);
+
+    // Reset header to 54 if history is empty
+    onWeightUpdate(newHistory.length > 0 ? newHistory[0].weight : "54");
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Weight Tracker</Text>
-
-      {/* Target Card */}
-      <View style={styles.targetCard}>
-        <View>
-          <Text style={styles.targetLabel}>Current Goal</Text>
-          <Text style={styles.targetValue}>{targetWeight} kg</Text>
-        </View>
-        <Feather name="target" size={40} color="#34C759" />
-      </View>
-
-      {/* Input Section */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter Weight (kg)"
-          placeholderTextColor="#666"
-          keyboardType="numeric"
-          value={currentWeight}
-          onChangeText={setCurrentWeight}
-        />
-        <TouchableOpacity style={styles.addBtn} onPress={addWeight}>
-          <Text style={styles.addBtnText}>Log Weight</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Weight Tracker</Text>
+        <TouchableOpacity
+          onPress={() => {
+            setIsDeleteMode(!isDeleteMode);
+            setSelectedItems([]);
+          }}
+        >
+          <Text style={[styles.editBtn, isDeleteMode && { color: "#FF3B30" }]}>
+            {isDeleteMode ? "Cancel" : "Delete"}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* History List */}
-      <Text style={styles.historyTitle}>Progress History</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Current Weight</Text>
+          <Text style={styles.statValue}>
+            {history.length > 0 ? history[0].weight : "54"}
+            <Text style={styles.unit}> kg</Text>
+          </Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Target Goal</Text>
+          <Text style={[styles.statValue, { color: "#34C759" }]}>
+            {targetWeight} <Text style={styles.unit}> kg</Text>
+          </Text>
+        </View>
+      </View>
+
+      {!isDeleteMode ? (
+        <View style={styles.inputBox}>
+          <TextInput
+            style={styles.input}
+            placeholder="Log weight (e.g. 54.5)"
+            placeholderTextColor="#666"
+            keyboardType="numeric"
+            value={currentInput}
+            onChangeText={setCurrentInput}
+          />
+          <TouchableOpacity style={styles.addBtn} onPress={addWeight}>
+            <Feather name="plus" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        selectedItems.length > 0 && (
+          <TouchableOpacity style={styles.deleteBar} onPress={deleteSelected}>
+            <Text style={styles.deleteBarText}>
+              Delete All Selected ({selectedItems.length})
+            </Text>
+          </TouchableOpacity>
+        )
+      )}
+
+      <Text style={styles.historyTitle}>PROGRESS HISTORY</Text>
       <FlatList
         data={history}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.historyRow}>
-            <Text style={styles.historyDate}>{item.date}</Text>
+          <TouchableOpacity
+            style={styles.historyRow}
+            onPress={() => {
+              if (isDeleteMode) {
+                selectedItems.includes(item.id)
+                  ? setSelectedItems(selectedItems.filter((i) => i !== item.id))
+                  : setSelectedItems([...selectedItems, item.id]);
+              }
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {isDeleteMode && (
+                <View
+                  style={[
+                    styles.checkbox,
+                    selectedItems.includes(item.id) && styles.checked,
+                  ]}
+                >
+                  {selectedItems.includes(item.id) && (
+                    <Feather name="check" size={12} color="white" />
+                  )}
+                </View>
+              )}
+              <Text style={styles.historyDate}>{item.date}</Text>
+            </View>
             <Text style={styles.historyWeight}>{item.weight} kg</Text>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </View>
@@ -79,55 +177,77 @@ export default function WeightScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000", padding: 20 },
-  headerTitle: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  targetCard: {
+  container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#1C1C1E",
-    padding: 20,
-    borderRadius: 15,
+    marginVertical: 20,
+  },
+  headerTitle: { color: "white", fontSize: 26, fontWeight: "bold" },
+  editBtn: { color: "#007AFF", fontSize: 16, fontWeight: "600" },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 25,
   },
-  targetLabel: { color: "#8E8E93", fontSize: 14 },
-  targetValue: { color: "white", fontSize: 32, fontWeight: "bold" },
-  inputContainer: { flexDirection: "row", marginBottom: 30 },
+  statCard: {
+    backgroundColor: "#1C1C1E",
+    width: "48%",
+    padding: 18,
+    borderRadius: 16,
+  },
+  statLabel: { color: "#8E8E93", fontSize: 12, marginBottom: 8 },
+  statValue: { color: "white", fontSize: 28, fontWeight: "bold" },
+  unit: { fontSize: 14, color: "#666" },
+  inputBox: { flexDirection: "row", marginBottom: 25 },
   input: {
     flex: 1,
     backgroundColor: "#1C1C1E",
-    borderRadius: 10,
-    paddingHorizontal: 15,
+    borderRadius: 12,
+    padding: 15,
     color: "white",
-    fontSize: 16,
-    marginRight: 10,
+    marginRight: 12,
   },
   addBtn: {
     backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    width: 56,
+    borderRadius: 12,
     justifyContent: "center",
+    alignItems: "center",
   },
-  addBtnText: { color: "white", fontWeight: "bold" },
+  deleteBar: {
+    backgroundColor: "#FF3B30",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  deleteBarText: { color: "white", fontWeight: "bold" },
   historyTitle: {
-    color: "#8E8E93",
-    fontSize: 16,
+    color: "#666",
+    fontSize: 12,
     fontWeight: "bold",
     marginBottom: 15,
   },
   historyRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 15,
+    paddingVertical: 18,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#333",
+    borderBottomColor: "#222",
   },
-  historyDate: { color: "#8E8E93", fontSize: 16 },
-  historyWeight: { color: "white", fontSize: 16, fontWeight: "bold" },
+  historyDate: { color: "#FFF", fontSize: 17 },
+  historyWeight: { color: "#8E8E93", fontSize: 17 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#444",
+    marginRight: 15,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checked: { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
 });

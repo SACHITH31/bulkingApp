@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import {
   Platform,
   SafeAreaView,
@@ -13,14 +14,33 @@ import {
 // IMPORT YOUR SCREEN COMPONENTS
 import FoodScreen from "../components/myscreens/FoodScreen";
 import HomeScreen from "../components/myscreens/HomeScreen";
-import WeightScreen from "../components/myscreens/WeightScreen"; // NEW IMPORT
+import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
 export default function App() {
-  // Navigation State - Changed 'Home' to start on Home
+  // Navigation State
   const [currentScreen, setCurrentScreen] = useState("Home");
-  // Logic to track your weight for the profile circle
+
+  // Global Weight State for the Profile Circle
   const [userWeight, setUserWeight] = useState("54");
+
+  // Load the last saved weight on app startup so the header is correct
+  useEffect(() => {
+    const loadInitialWeight = async () => {
+      try {
+        const saved = await AsyncStorage.getItem("@weight_history");
+        if (saved !== null) {
+          const parsed = JSON.parse(saved);
+          if (parsed.length > 0) {
+            setUserWeight(parsed[0].weight);
+          }
+        }
+      } catch (e) {
+        console.log("Error loading weight for header");
+      }
+    };
+    loadInitialWeight();
+  }, []);
 
   // Helper to render the correct screen
   const renderScreen = () => {
@@ -31,8 +51,15 @@ export default function App() {
         return <FoodScreen />;
       case "Work":
         return <WorkScreen />;
-      case "Weight": // REPLACED DRAFTS WITH WEIGHT
-        return <WeightScreen />;
+      case "Weight":
+        // Pass the function to update the header weight automatically
+        return (
+          <WeightScreen
+            onWeightUpdate={(newW: React.SetStateAction<string>) =>
+              setUserWeight(newW)
+            }
+          />
+        );
       default:
         return (
           <View style={styles.center}>
@@ -107,7 +134,6 @@ export default function App() {
           <Feather name="plus" size={28} color="white" />
         </View>
 
-        {/* UPDATED: DRAFTS REPLACED WITH WEIGHT */}
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setCurrentScreen("Weight")}
