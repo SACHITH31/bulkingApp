@@ -11,20 +11,16 @@ import {
   View,
 } from "react-native";
 
-// IMPORT YOUR SCREEN COMPONENTS
+import AddTaskScreen from "../components/myscreens/AddTaskScreen"; // Make sure path is correct
 import FoodScreen from "../components/myscreens/FoodScreen";
 import HomeScreen from "../components/myscreens/HomeScreen";
 import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
 export default function App() {
-  // Navigation State
   const [currentScreen, setCurrentScreen] = useState("Home");
-
-  // Global Weight State for the Profile Circle
   const [userWeight, setUserWeight] = useState("54");
 
-  // Load the last saved weight on app startup so the header is correct
   useEffect(() => {
     const loadInitialWeight = async () => {
       try {
@@ -32,17 +28,22 @@ export default function App() {
         if (saved !== null) {
           const parsed = JSON.parse(saved);
           if (parsed.length > 0) {
-            setUserWeight(parsed[0].weight);
+            // Calculate cumulative weight for header
+            const gained = parsed.reduce(
+              (sum: number, item: { amount: string }) =>
+                sum + parseFloat(item.amount),
+              0,
+            );
+            setUserWeight((54 + gained).toFixed(2));
           }
         }
       } catch (e) {
-        console.log("Error loading weight for header");
+        console.log("Error loading weight");
       }
     };
     loadInitialWeight();
   }, []);
 
-  // Helper to render the correct screen
   const renderScreen = () => {
     switch (currentScreen) {
       case "Home":
@@ -51,8 +52,9 @@ export default function App() {
         return <FoodScreen />;
       case "Work":
         return <WorkScreen />;
+      case "AddTask":
+        return <AddTaskScreen onGoBack={() => setCurrentScreen("Home")} />;
       case "Weight":
-        // Pass the function to update the header weight automatically
         return (
           <WeightScreen
             onWeightUpdate={(newW: React.SetStateAction<string>) =>
@@ -63,9 +65,7 @@ export default function App() {
       default:
         return (
           <View style={styles.center}>
-            <Text style={{ color: "#666" }}>
-              {currentScreen} Screen Coming Soon
-            </Text>
+            <Text>{currentScreen} Coming Soon</Text>
           </View>
         );
     }
@@ -86,7 +86,6 @@ export default function App() {
         </View>
       </View>
 
-      {/* ACTIVE SCREEN CONTENT */}
       <View style={{ flex: 1 }}>{renderScreen()}</View>
 
       {/* BOTTOM NAVIGATION BAR */}
@@ -129,10 +128,14 @@ export default function App() {
           </Text>
         </TouchableOpacity>
 
-        {/* Action Button (Center) */}
-        <View style={styles.addBtn}>
+        {/* Action Button Fixed: Now switches to AddTask screen */}
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => setCurrentScreen("AddTask")}
+          activeOpacity={0.7}
+        >
           <Feather name="plus" size={28} color="white" />
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.navItem}
@@ -175,7 +178,6 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
