@@ -4,21 +4,32 @@ import { useIsFocused } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
+
+// Enable LayoutAnimation for Android
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function HomeScreen({ onEditTask }: any) {
   const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [allTaskGroups, setAllTaskGroups] = useState<any[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null); // Track which card is open
 
-  // Refresh data every time the screen comes into focus
   useEffect(() => {
     if (isFocused) {
       loadTasks();
@@ -34,11 +45,14 @@ export default function HomeScreen({ onEditTask }: any) {
     }
   };
 
-  // CORE LOGIC: Determines which tab a task belongs to based on the ISO date string
+  const toggleExpand = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   const getTaskCategory = (taskISO: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const taskDate = new Date(taskISO);
     taskDate.setHours(0, 0, 0, 0);
 
@@ -72,53 +86,35 @@ export default function HomeScreen({ onEditTask }: any) {
 
   const filteredTasks = allTaskGroups.filter((group) => {
     const category = getTaskCategory(group.date);
-
-    // 1. Tab Filtering Logic
     let matchesTab = false;
-    if (activeTab === "All") {
-      // "All" shows everything from the past up to today, but NOT the future
+    if (activeTab === "All")
       matchesTab = category === "Today" || category === "Previous";
-    } else if (activeTab === "Previous") {
-      matchesTab = category === "Previous";
-    } else if (activeTab === "Today") {
-      matchesTab = category === "Today";
-    } else if (activeTab === "Future") {
-      matchesTab = category === "Future";
-    } else if (activeTab === "Completed") {
-      matchesTab = group.completed === true;
-    }
+    else if (activeTab === "Previous") matchesTab = category === "Previous";
+    else if (activeTab === "Today") matchesTab = category === "Today";
+    else if (activeTab === "Future") matchesTab = category === "Future";
+    else if (activeTab === "Completed") matchesTab = group.completed === true;
 
-    // 2. Search Filtering Logic (Search within the selected section only)
-    const matchesSearch =
-      group.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      new Date(group.date)
-        .toDateString()
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-
+    const matchesSearch = group.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
           <Feather name="search" size={18} color="#666" />
           <TextInput
-            placeholder="Search in this section..."
+            placeholder="Search tasks..."
             placeholderTextColor="#666"
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
-        <TouchableOpacity style={styles.filterBtn}>
-          <Feather name="sliders" size={20} color="white" />
-        </TouchableOpacity>
       </View>
 
-      {/* Tabs Navigation */}
       <View style={styles.tabRow}>
         {["All", "Completed", "Previous", "Today", "Future"].map((tab) => (
           <TouchableOpacity
@@ -144,16 +140,16 @@ export default function HomeScreen({ onEditTask }: any) {
       >
         <Text style={styles.sectionTitle}>{activeTab} Tasks</Text>
 
-        {filteredTasks.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Feather name="inbox" size={40} color="#333" />
-            <Text style={styles.emptyText}>No tasks found in {activeTab}</Text>
-          </View>
-        ) : (
-          filteredTasks.map((group) => (
-            <View key={group.id} style={styles.taskCard}>
+        {filteredTasks.map((group) => {
+          const isExpanded = expandedId === group.id;
+          return (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              key={group.id}
+              style={styles.taskCard}
+              onPress={() => toggleExpand(group.id)}
+            >
               <View style={styles.taskHeader}>
-                {/* Completion Icon Circle */}
                 <TouchableOpacity
                   style={[
                     styles.iconCircle,
@@ -168,7 +164,6 @@ export default function HomeScreen({ onEditTask }: any) {
                   />
                 </TouchableOpacity>
 
-                {/* Task Details */}
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text
                     style={[
@@ -184,7 +179,6 @@ export default function HomeScreen({ onEditTask }: any) {
                   </Text>
                 </View>
 
-                {/* Actions: Edit and Delete */}
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     onPress={() => onEditTask(group)}
@@ -198,25 +192,31 @@ export default function HomeScreen({ onEditTask }: any) {
                   >
                     <Feather name="trash-2" size={18} color="#FF3B30" />
                   </TouchableOpacity>
+                  <Feather
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#666"
+                    style={{ marginLeft: 10 }}
+                  />
                 </View>
               </View>
 
-              {/* Nested Todos Preview */}
-              <View style={styles.todoPreview}>
-                {group.todos.slice(0, 2).map((todo: any, idx: number) => (
-                  <Text key={idx} style={styles.todoText}>
-                    • {todo.name}
-                  </Text>
-                ))}
-                {group.todos.length > 2 && (
-                  <Text style={styles.moreText}>
-                    +{group.todos.length - 2} more items
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))
-        )}
+              {/* COLLAPSIBLE SECTION */}
+              {isExpanded && (
+                <View style={styles.expandedContent}>
+                  {group.todos.map((todo: any, idx: number) => (
+                    <View key={idx} style={styles.todoItem}>
+                      <Text style={styles.todoName}>• {todo.name}</Text>
+                      {todo.description ? (
+                        <Text style={styles.todoDesc}>{todo.description}</Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -224,12 +224,7 @@ export default function HomeScreen({ onEditTask }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-    marginTop: 10,
-  },
+  searchRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   searchBar: {
     flex: 1,
     flexDirection: "row",
@@ -239,12 +234,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   searchInput: { color: "white", marginLeft: 10, flex: 1 },
-  filterBtn: {
-    backgroundColor: "#1C1C1E",
-    padding: 12,
-    borderRadius: 12,
-    marginLeft: 10,
-  },
   tabRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -279,11 +268,15 @@ const styles = StyleSheet.create({
   taskTitle: { color: "white", fontWeight: "bold", fontSize: 16 },
   textCompleted: { textDecorationLine: "line-through", color: "#666" },
   taskSub: { color: "#666", fontSize: 12, marginTop: 2 },
-  actionRow: { flexDirection: "row" },
-  actionBtn: { marginLeft: 15 },
-  todoPreview: { marginTop: 12, paddingLeft: 48 },
-  todoText: { color: "#AAA", fontSize: 13, marginBottom: 2 },
-  moreText: { color: "#007AFF", fontSize: 12, marginTop: 4 },
-  emptyContainer: { alignItems: "center", marginTop: 60 },
-  emptyText: { color: "#444", marginTop: 10, fontSize: 16 },
+  actionRow: { flexDirection: "row", alignItems: "center" },
+  actionBtn: { marginLeft: 12 },
+  expandedContent: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 0.5,
+    borderTopColor: "#333",
+  },
+  todoItem: { marginBottom: 10 },
+  todoName: { color: "#EEE", fontSize: 14, fontWeight: "600" },
+  todoDesc: { color: "#888", fontSize: 12, marginLeft: 12, marginTop: 2 },
 });

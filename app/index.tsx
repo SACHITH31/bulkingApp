@@ -1,10 +1,17 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import AddTaskScreen from "../components/myscreens/AddTaskScreen";
 import FoodScreen from "../components/myscreens/FoodScreen";
 import HomeScreen from "../components/myscreens/HomeScreen";
-import LoadingScreen from "../components/myscreens/LoadingScreen"; // Ensure this path is correct
+import LoadingScreen from "../components/myscreens/LoadingScreen";
 import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
@@ -14,11 +21,10 @@ export default function App() {
   const [userWeight, setUserWeight] = useState("54.00");
   const [editingTask, setEditingTask] = useState(null);
 
-  // Starter Loading Animation Effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 5000); // Shows splash for 2.5 seconds
+    }, 5000); // 5 second animation as requested
     return () => clearTimeout(timer);
   }, []);
 
@@ -67,105 +73,112 @@ export default function App() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* HEADER LOGIC: 
-         Hide the global header when AddTask is active to match your screenshot 
-      */}
-      {currentScreen !== "AddTask" && (
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Bulking_App</Text>
-            <Text style={styles.headerSub}>Target: 63kg • July 2nd</Text>
-          </View>
-          <View style={styles.weightBadge}>
-            <Text style={styles.weightText}>{userWeight}</Text>
-          </View>
-        </View>
-      )}
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
 
+      {/* GLOBAL HEADER - Always Visible */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Bulking_App</Text>
+          <Text style={styles.headerSub}>Target: 63kg • July 2nd</Text>
+        </View>
+        <View style={styles.weightBadge}>
+          <Text style={styles.weightText}>{userWeight}</Text>
+        </View>
+      </View>
+
+      {/* MAIN CONTENT AREA */}
       <View style={{ flex: 1 }}>{renderScreen()}</View>
 
-      {/* NAVIGATION BAR LOGIC: 
-         Hide when adding/editing a task for a clean workspace 
-      */}
-      {currentScreen !== "AddTask" && (
-        <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => setCurrentScreen("Home")}>
-            <Feather
-              name="home"
-              size={24}
-              color={currentScreen === "Home" ? "#007AFF" : "#666"}
-            />
-            <Text
-              style={[
-                styles.navText,
-                currentScreen === "Home" && styles.activeNavText,
-              ]}
-            >
-              Home
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setCurrentScreen("Food")}>
-            <Feather
-              name="book-open"
-              size={24}
-              color={currentScreen === "Food" ? "#007AFF" : "#666"}
-            />
-            <Text
-              style={[
-                styles.navText,
-                currentScreen === "Food" && styles.activeNavText,
-              ]}
-            >
-              Food
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.floatingAdd}
-            onPress={() => {
-              setEditingTask(null);
-              setCurrentScreen("AddTask");
-            }}
+      {/* GLOBAL NAVIGATION BAR - Always Visible */}
+      <View style={styles.navBar}>
+        <TouchableOpacity
+          onPress={() => setCurrentScreen("Home")}
+          style={styles.navItem}
+        >
+          <Feather
+            name="home"
+            size={24}
+            color={currentScreen === "Home" ? "#007AFF" : "#666"}
+          />
+          <Text
+            style={[
+              styles.navText,
+              currentScreen === "Home" && styles.activeNavText,
+            ]}
           >
-            <Feather name="plus" size={30} color="white" />
-          </TouchableOpacity>
+            Home
+          </Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setCurrentScreen("Weight")}>
-            <Feather
-              name="trending-up"
-              size={24}
-              color={currentScreen === "Weight" ? "#007AFF" : "#666"}
-            />
-            <Text
-              style={[
-                styles.navText,
-                currentScreen === "Weight" && styles.activeNavText,
-              ]}
-            >
-              Weight
-            </Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setCurrentScreen("Food")}
+          style={styles.navItem}
+        >
+          <Feather
+            name="book-open"
+            size={24}
+            color={currentScreen === "Food" ? "#007AFF" : "#666"}
+          />
+          <Text
+            style={[
+              styles.navText,
+              currentScreen === "Food" && styles.activeNavText,
+            ]}
+          >
+            Food
+          </Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setCurrentScreen("Work")}>
-            <Feather
-              name="bookmark"
-              size={24}
-              color={currentScreen === "Work" ? "#007AFF" : "#666"}
-            />
-            <Text
-              style={[
-                styles.navText,
-                currentScreen === "Work" && styles.activeNavText,
-              ]}
-            >
-              Work
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+        <TouchableOpacity
+          style={styles.floatingAdd}
+          onPress={() => {
+            setEditingTask(null);
+            setCurrentScreen("AddTask");
+          }}
+        >
+          <Feather name="plus" size={30} color="white" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setCurrentScreen("Weight")}
+          style={styles.navItem}
+        >
+          <Feather
+            name="trending-up"
+            size={24}
+            color={currentScreen === "Weight" ? "#007AFF" : "#666"}
+          />
+          <Text
+            style={[
+              styles.navText,
+              currentScreen === "Weight" && styles.activeNavText,
+            ]}
+          >
+            Weight
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setCurrentScreen("Work")}
+          style={styles.navItem}
+        >
+          <Feather
+            name="bookmark"
+            size={24}
+            color={currentScreen === "Work" ? "#007AFF" : "#666"}
+          />
+          <Text
+            style={[
+              styles.navText,
+              currentScreen === "Work" && styles.activeNavText,
+            ]}
+          >
+            Work
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -176,8 +189,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
+    paddingTop: 20, // Reduced because SafeAreaView handles the notch
+    paddingBottom: 15,
   },
   headerTitle: { color: "white", fontSize: 28, fontWeight: "bold" },
   headerSub: { color: "#666", fontSize: 14 },
@@ -192,11 +205,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     backgroundColor: "#000",
-    paddingVertical: 15,
+    paddingVertical: 10,
     borderTopWidth: 0.5,
     borderTopColor: "#333",
     alignItems: "center",
+    height: 80, // Set height for better spacing
   },
+  navItem: { alignItems: "center", justifyContent: "center" },
   navText: { color: "#666", fontSize: 10, textAlign: "center", marginTop: 4 },
   activeNavText: { color: "#007AFF" },
   floatingAdd: {
@@ -206,8 +221,12 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: -40,
+    marginTop: -45,
     elevation: 5,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 });
