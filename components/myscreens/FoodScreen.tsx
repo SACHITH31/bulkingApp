@@ -1,121 +1,171 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function FoodScreen() {
-  // DATA SOURCE: Muscle Gain Diet Plan [cite: 12-34]
-  const [meals, setMeals] = useState([
+  // 1. STATE MANAGEMENT: Organizing items by "Period"
+  const [dietPlan, setDietPlan] = useState([
     {
-      id: 1,
-      name: "Morning (5:00 AM)",
-      items: "1 Glass Water",
-      kcal: 0,
-      pro: 0,
-      done: false,
+      period: "After Bed",
+      completed: false,
+      items: [{ id: 1, name: "1 Glass Water", kcal: 0, pro: 0, done: false }],
     },
     {
-      id: 2,
-      name: "Breakfast (7:30 AM)",
-      items: "Milk, Banana, 10 Almonds, 40g Oats",
-      kcal: 440,
-      pro: 14,
-      done: false,
+      period: "Breakfast",
+      completed: false,
+      items: [
+        { id: 2, name: "Milk (250ml)", kcal: 150, pro: 8, done: false },
+        { id: 3, name: "1 Banana", kcal: 100, pro: 1, done: false },
+        { id: 4, name: "10 Almonds", kcal: 70, pro: 2, done: false },
+        { id: 5, name: "40g Oats", kcal: 150, pro: 5, done: false },
+      ],
     },
     {
-      id: 3,
-      name: "College Snack (10:40 AM)",
-      items: "1 Fruit, 20g Peanuts",
-      kcal: 210,
-      pro: 7,
-      done: false,
+      period: "College Snack",
+      completed: false,
+      items: [
+        { id: 6, name: "1 Fruit", kcal: 80, pro: 1, done: false },
+        { id: 7, name: "20g Peanuts", kcal: 115, pro: 5, done: false },
+      ],
     },
     {
-      id: 4,
-      name: "Lunch (1:00 PM)",
-      items: "Rice, Channa Dal, Ghee, Salad",
-      kcal: 660,
-      pro: 21,
-      done: false,
+      period: "Lunch",
+      completed: false,
+      items: [
+        { id: 8, name: "Rice (Large Portion)", kcal: 350, pro: 6, done: false },
+        { id: 9, name: "Channa Dal", kcal: 180, pro: 12, done: false },
+        { id: 10, name: "1 tsp Ghee", kcal: 90, pro: 0, done: false },
+        { id: 11, name: "Salad", kcal: 40, pro: 1, done: false },
+      ],
     },
     {
-      id: 5,
-      name: "Evening Snack (4:30 PM)",
-      items: "1 Banana, 30g Roasted Chana",
-      kcal: 210,
-      pro: 7,
-      done: false,
+      period: "Evening Snack",
+      completed: false,
+      items: [
+        { id: 12, name: "1 Banana", kcal: 100, pro: 1, done: false },
+        { id: 13, name: "30g Roasted Chana", kcal: 110, pro: 6, done: false },
+      ],
     },
     {
-      id: 6,
-      name: "Evening Shake (6:00 PM)",
-      items: "Milk, Banana, Oats, Peanut Butter",
-      kcal: 400,
-      pro: 25,
-      done: false,
+      period: "Evening Shake",
+      completed: false,
+      items: [
+        {
+          id: 14,
+          name: "Milk, Banana, Oats, PB",
+          kcal: 400,
+          pro: 25,
+          done: false,
+        },
+      ],
     },
     {
-      id: 7,
-      name: "Dinner (7:30 PM)",
-      items: "Rice, Dal, Milk",
-      kcal: 660,
-      pro: 26,
-      done: false,
+      period: "Dinner",
+      completed: false,
+      items: [
+        { id: 15, name: "Rice", kcal: 300, pro: 5, done: false },
+        { id: 16, name: "Dal", kcal: 180, pro: 12, done: false },
+        { id: 17, name: "Milk", kcal: 150, pro: 8, done: false },
+      ],
     },
     {
-      id: 8,
-      name: "Before Bed (9:30 PM)",
-      items: "1 Glass Milk",
-      kcal: 130,
-      pro: 6,
-      done: false,
+      period: "Before Bed",
+      completed: false,
+      items: [{ id: 18, name: "1 Glass Milk", kcal: 130, pro: 6, done: false }],
     },
   ]);
 
-  const toggleMeal = (id: number) => {
-    setMeals(meals.map((m) => (m.id === id ? { ...m, done: !m.done } : m)));
+  // 2. MIDNIGHT RESET LOGIC
+  useEffect(() => {
+    const now = new Date();
+    const night = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      0,
+      0,
+      0,
+    );
+    const msToMidnight = night.getTime() - now.getTime();
+
+    const timer = setTimeout(() => {
+      // Reset all items to "false"
+      setDietPlan((prev) =>
+        prev.map((section) => ({
+          ...section,
+          completed: false,
+          items: section.items.map((item) => ({ ...item, done: false })),
+        })),
+      );
+    }, msToMidnight);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 3. TOGGLE FUNCTION
+  const toggleItem = (periodIndex: number, itemId: number) => {
+    const updatedPlan = [...dietPlan];
+    const section = updatedPlan[periodIndex];
+    const item = section.items.find((i) => i.id === itemId);
+
+    if (item) {
+      item.done = !item.done;
+      // Auto-check section if all items are done
+      section.completed = section.items.every((i) => i.done);
+      setDietPlan(updatedPlan);
+    }
   };
 
-  // Calculations based on Targets [cite: 36, 37]
-  const currentKcal = meals.reduce(
-    (sum, m) => (m.done ? sum + m.kcal : sum),
+  // 4. CALCULATION
+  const allItems = dietPlan.flatMap((p) => p.items);
+  const currentKcal = allItems.reduce(
+    (sum, i) => (i.done ? sum + i.kcal : sum),
     0,
   );
-  const currentPro = meals.reduce((sum, m) => (m.done ? sum + m.pro : sum), 0);
+  const currentPro = allItems.reduce(
+    (sum, i) => (i.done ? sum + i.pro : sum),
+    0,
+  );
 
   return (
     <View style={styles.container}>
-      {/* Progress Cards based on Diet Plan Goals [cite: 7, 8] */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Calories</Text>
-          <Text style={styles.statValue}>{currentKcal}/2600</Text>
+      {/* 5. TOP PROGRESS BARS (STACKED) */}
+      <View style={styles.statContainer}>
+        <View style={styles.statBox}>
+          <View style={styles.labelRow}>
+            <Text style={styles.statLabel}>Calories</Text>
+            <Text style={styles.statValue}>{currentKcal}/2600</Text>
+          </View>
           <View style={styles.barBg}>
             <View
               style={[
                 styles.barFill,
                 {
-                  width: `${Math.min((currentKcal / 2600) * 100, 100)}%`,
+                  width: `${(currentKcal / 2600) * 100}%`,
                   backgroundColor: "#FF9500",
                 },
               ]}
             />
           </View>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Protein</Text>
-          <Text style={styles.statValue}>{currentPro}g/95g</Text>
+
+        <View style={styles.statBox}>
+          <View style={styles.labelRow}>
+            <Text style={styles.statLabel}>Protein</Text>
+            <Text style={styles.statValue}>{currentPro}g/95g</Text>
+          </View>
           <View style={styles.barBg}>
             <View
               style={[
                 styles.barFill,
                 {
-                  width: `${Math.min((currentPro / 95) * 100, 100)}%`,
+                  width: `${(currentPro / 95) * 100}%`,
                   backgroundColor: "#34C759",
                 },
               ]}
@@ -124,24 +174,38 @@ export default function FoodScreen() {
         </View>
       </View>
 
+      {/* 6. SECTIONED LIST */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Diet Checklist</Text>
-        {meals.map((meal) => (
-          <TouchableOpacity
-            key={meal.id}
-            style={styles.mealItem}
-            onPress={() => toggleMeal(meal.id)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.mealName}>{meal.name}</Text>
-              <Text style={styles.mealDesc}>{meal.items}</Text>
+        {dietPlan.map((section, pIdx) => (
+          <View key={pIdx} style={styles.sectionWrapper}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{section.period}</Text>
+              {section.completed && (
+                <Feather name="check-circle" size={18} color="#34C759" />
+              )}
             </View>
-            <View style={[styles.check, meal.done && styles.checked]}>
-              {meal.done && <Feather name="check" size={14} color="white" />}
-            </View>
-          </TouchableOpacity>
+
+            {section.items.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.itemRow}
+                onPress={() => toggleItem(pIdx, item.id)}
+              >
+                <View style={[styles.checkbox, item.done && styles.checked]}>
+                  {item.done && (
+                    <Feather name="check" size={14} color="white" />
+                  )}
+                </View>
+                <Text
+                  style={[styles.itemName, item.done && styles.strikethrough]}
+                >
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         ))}
-        <View style={{ height: 30 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -149,54 +213,51 @@ export default function FoodScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
-  statsRow: {
+  statContainer: { marginVertical: 20 },
+  statBox: { marginBottom: 15 },
+  labelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 25,
-    marginTop: 10,
+    marginBottom: 8,
   },
-  statCard: {
+  statLabel: { color: "#8E8E93", fontSize: 14, fontWeight: "600" },
+  statValue: { color: "white", fontSize: 14, fontWeight: "bold" },
+  barBg: {
+    height: 8,
     backgroundColor: "#1C1C1E",
-    width: "48%",
-    padding: 15,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  barFill: { height: "100%", borderRadius: 4 },
+  sectionWrapper: {
+    backgroundColor: "#1C1C1E",
     borderRadius: 15,
-  },
-  statLabel: { color: "#666", fontSize: 12, fontWeight: "bold" },
-  statValue: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginVertical: 8,
-  },
-  barBg: { height: 4, backgroundColor: "#333", borderRadius: 2 },
-  barFill: { height: "100%", borderRadius: 2 },
-  sectionTitle: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    padding: 15,
     marginBottom: 15,
   },
-  mealItem: {
+  sectionHeader: {
     flexDirection: "row",
-    backgroundColor: "#1C1C1E",
-    padding: 18,
-    borderRadius: 15,
-    marginBottom: 12,
+    justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#333",
+    paddingBottom: 8,
   },
-  mealName: { color: "white", fontWeight: "bold", fontSize: 14 },
-  mealDesc: { color: "#666", fontSize: 11, marginTop: 4 },
-  check: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  sectionTitle: { color: "#007AFF", fontSize: 16, fontWeight: "bold" },
+  itemRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderSize: 2,
+    borderColor: "#444",
     borderWidth: 2,
-    borderColor: "#333",
-  },
-  checked: {
-    backgroundColor: "#34C759",
-    borderColor: "#34C759",
+    marginRight: 12,
     justifyContent: "center",
     alignItems: "center",
   },
+  checked: { backgroundColor: "#34C759", borderColor: "#34C759" },
+  itemName: { color: "white", fontSize: 15 },
+  strikethrough: { color: "#666", textDecorationLine: "line-through" },
 });
