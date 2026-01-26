@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
   Keyboard,
   StyleSheet,
@@ -11,17 +12,23 @@ import {
   View,
 } from "react-native";
 
-export default function WeightScreen({
-  onWeightUpdate,
-}: {
-  onWeightUpdate: (w: string) => void;
-}) {
+export default function WeightScreen({ onWeightUpdate }) {
   const [currentInput, setCurrentInput] = useState("");
   const [history, setHistory] = useState([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
 
-  const targetWeight = 63; // Your Goal
+  const BASE_WEIGHT = 54; //
+  const targetWeight = 63; //
+
+  const calculateTotalWeight = (logs) => {
+    // Math safety check: only add valid numbers
+    const gained = logs.reduce((sum, item) => {
+      const val = parseFloat(item.amount);
+      return isNaN(val) ? sum : sum + val;
+    }, 0);
+    return (BASE_WEIGHT + gained).toFixed(2);
+  };
 
   useEffect(() => {
     loadWeights();
@@ -33,17 +40,16 @@ export default function WeightScreen({
       if (saved !== null) {
         const parsed = JSON.parse(saved);
         setHistory(parsed);
-        // Fallback to 54 if history is cleared
-        onWeightUpdate(parsed.length > 0 ? parsed[0].weight : "54");
+        onWeightUpdate(calculateTotalWeight(parsed));
       } else {
-        onWeightUpdate("54");
+        onWeightUpdate(BASE_WEIGHT.toString());
       }
     } catch (e) {
-      onWeightUpdate("54");
+      onWeightUpdate(BASE_WEIGHT.toString());
     }
   };
 
-  const saveWeights = async (data: any) => {
+  const saveWeights = async (data) => {
     try {
       await AsyncStorage.setItem("@weight_history", JSON.stringify(data));
     } catch (e) {
@@ -52,19 +58,25 @@ export default function WeightScreen({
   };
 
   const addWeight = () => {
-    if (!currentInput || isNaN(parseFloat(currentInput))) return;
+    // SAFETY CHECK: Prevents NaN if input is empty or just a dot
+    if (!currentInput || isNaN(parseFloat(currentInput))) {
+      Alert.alert("Error", "Please enter a weight amount first.");
+      return;
+    }
+
     const newEntry = {
       id: Date.now().toString(),
       date: new Date().toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       }),
-      weight: currentInput,
+      amount: currentInput,
     };
+
     const newHistory = [newEntry, ...history];
     setHistory(newHistory);
     saveWeights(newHistory);
-    onWeightUpdate(currentInput);
+    onWeightUpdate(calculateTotalWeight(newHistory));
     setCurrentInput("");
     Keyboard.dismiss();
   };
@@ -77,9 +89,7 @@ export default function WeightScreen({
     saveWeights(newHistory);
     setSelectedItems([]);
     setIsDeleteMode(false);
-
-    // Reset header to 54 if history is empty
-    onWeightUpdate(newHistory.length > 0 ? newHistory[0].weight : "54");
+    onWeightUpdate(calculateTotalWeight(newHistory));
   };
 
   return (
@@ -102,7 +112,7 @@ export default function WeightScreen({
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Current Weight</Text>
           <Text style={styles.statValue}>
-            {history.length > 0 ? history[0].weight : "54"}
+            {calculateTotalWeight(history)}
             <Text style={styles.unit}> kg</Text>
           </Text>
         </View>
@@ -118,9 +128,9 @@ export default function WeightScreen({
         <View style={styles.inputBox}>
           <TextInput
             style={styles.input}
-            placeholder="Log weight (e.g. 54.5)"
+            placeholder="Add weight (e.g. 0.25)"
             placeholderTextColor="#666"
-            keyboardType="numeric"
+            keyboardType="decimal-pad" // Better for weights with dots
             value={currentInput}
             onChangeText={setCurrentInput}
           />
@@ -132,13 +142,13 @@ export default function WeightScreen({
         selectedItems.length > 0 && (
           <TouchableOpacity style={styles.deleteBar} onPress={deleteSelected}>
             <Text style={styles.deleteBarText}>
-              Delete All Selected ({selectedItems.length})
+              Delete Selected ({selectedItems.length})
             </Text>
           </TouchableOpacity>
         )
       )}
 
-      <Text style={styles.historyTitle}>PROGRESS HISTORY</Text>
+      <Text style={styles.historyTitle}>GAINS HISTORY</Text>
       <FlatList
         data={history}
         keyExtractor={(item) => item.id}
@@ -168,7 +178,7 @@ export default function WeightScreen({
               )}
               <Text style={styles.historyDate}>{item.date}</Text>
             </View>
-            <Text style={styles.historyWeight}>{item.weight} kg</Text>
+            <Text style={styles.historyWeight}>+{item.amount} kg</Text>
           </TouchableOpacity>
         )}
       />
@@ -238,7 +248,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#222",
   },
   historyDate: { color: "#FFF", fontSize: 17 },
-  historyWeight: { color: "#8E8E93", fontSize: 17 },
+  historyWeight: { color: "#34C759", fontSize: 17, fontWeight: "bold" },
   checkbox: {
     width: 22,
     height: 22,

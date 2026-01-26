@@ -198,15 +198,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   profileCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     backgroundColor: "#1C1C1E",
+    // Remove fixed width if it's there
+    minWidth: 45, // Minimum size for a single digit
+    height: 45,
+    borderRadius: 22.5,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 8, // Adds space so the text doesn't touch the edges
+    borderWidth: 1,
+    borderColor: "#333",
   },
   profileText: {
-    color: "#fff",
+    color: "white",
+    fontSize: 14, // Slightly smaller to fit "54.00"
     fontWeight: "bold",
   },
   navBar: {
