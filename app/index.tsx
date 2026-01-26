@@ -1,16 +1,30 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import AddTaskScreen from "../components/myscreens/AddTaskScreen";
 import FoodScreen from "../components/myscreens/FoodScreen";
 import HomeScreen from "../components/myscreens/HomeScreen";
+import LoadingScreen from "../components/myscreens/LoadingScreen"; // Ensure this path is correct
 import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("Home");
   const [userWeight, setUserWeight] = useState("54.00");
-  const [editingTask, setEditingTask] = useState(null); // State to hold the task being edited
+  const [editingTask, setEditingTask] = useState(null);
+
+  // Starter Loading Animation Effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 5000); // Shows splash for 2.5 seconds
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -18,8 +32,8 @@ export default function App() {
         return (
           <HomeScreen
             onEditTask={(task: any) => {
-              setEditingTask(task); // Set the task data
-              setCurrentScreen("AddTask"); // Move to the form
+              setEditingTask(task);
+              setCurrentScreen("AddTask");
             }}
           />
         );
@@ -30,9 +44,9 @@ export default function App() {
       case "AddTask":
         return (
           <AddTaskScreen
-            editTask={editingTask} // Pass the task if it exists
+            editTask={editingTask}
             onGoBack={() => {
-              setEditingTask(null); // Clear editing state on back
+              setEditingTask(null);
               setCurrentScreen("Home");
             }}
           />
@@ -54,96 +68,103 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* Header with weight display from your design */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Bulking_App</Text>
-          <Text style={styles.headerSub}>Target: 63kg • July 2nd</Text>
+      {/* HEADER LOGIC: 
+         Hide the global header when AddTask is active to match your screenshot 
+      */}
+      {currentScreen !== "AddTask" && (
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Bulking_App</Text>
+            <Text style={styles.headerSub}>Target: 63kg • July 2nd</Text>
+          </View>
+          <View style={styles.weightBadge}>
+            <Text style={styles.weightText}>{userWeight}</Text>
+          </View>
         </View>
-        <View style={styles.weightBadge}>
-          <Text style={styles.weightText}>{userWeight}</Text>
-        </View>
-      </View>
+      )}
 
       <View style={{ flex: 1 }}>{renderScreen()}</View>
 
-      {/* Navigation Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => setCurrentScreen("Home")}>
-          <Feather
-            name="home"
-            size={24}
-            color={currentScreen === "Home" ? "#007AFF" : "#666"}
-          />
-          <Text
-            style={[
-              styles.navText,
-              currentScreen === "Home" && styles.activeNavText,
-            ]}
-          >
-            Home
-          </Text>
-        </TouchableOpacity>
+      {/* NAVIGATION BAR LOGIC: 
+         Hide when adding/editing a task for a clean workspace 
+      */}
+      {currentScreen !== "AddTask" && (
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => setCurrentScreen("Home")}>
+            <Feather
+              name="home"
+              size={24}
+              color={currentScreen === "Home" ? "#007AFF" : "#666"}
+            />
+            <Text
+              style={[
+                styles.navText,
+                currentScreen === "Home" && styles.activeNavText,
+              ]}
+            >
+              Home
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setCurrentScreen("Food")}>
-          <Feather
-            name="book-open"
-            size={24}
-            color={currentScreen === "Food" ? "#007AFF" : "#666"}
-          />
-          <Text
-            style={[
-              styles.navText,
-              currentScreen === "Food" && styles.activeNavText,
-            ]}
-          >
-            Food
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => setCurrentScreen("Food")}>
+            <Feather
+              name="book-open"
+              size={24}
+              color={currentScreen === "Food" ? "#007AFF" : "#666"}
+            />
+            <Text
+              style={[
+                styles.navText,
+                currentScreen === "Food" && styles.activeNavText,
+              ]}
+            >
+              Food
+            </Text>
+          </TouchableOpacity>
 
-        {/* Floating Add Button */}
-        <TouchableOpacity
-          style={styles.floatingAdd}
-          onPress={() => {
-            setEditingTask(null); // Ensure we are creating a NEW task
-            setCurrentScreen("AddTask");
-          }}
-        >
-          <Feather name="plus" size={30} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => setCurrentScreen("Weight")}>
-          <Feather
-            name="trending-up"
-            size={24}
-            color={currentScreen === "Weight" ? "#007AFF" : "#666"}
-          />
-          <Text
-            style={[
-              styles.navText,
-              currentScreen === "Weight" && styles.activeNavText,
-            ]}
+          <TouchableOpacity
+            style={styles.floatingAdd}
+            onPress={() => {
+              setEditingTask(null);
+              setCurrentScreen("AddTask");
+            }}
           >
-            Weight
-          </Text>
-        </TouchableOpacity>
+            <Feather name="plus" size={30} color="white" />
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setCurrentScreen("Work")}>
-          <Feather
-            name="bookmark"
-            size={24}
-            color={currentScreen === "Work" ? "#007AFF" : "#666"}
-          />
-          <Text
-            style={[
-              styles.navText,
-              currentScreen === "Work" && styles.activeNavText,
-            ]}
-          >
-            Work
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity onPress={() => setCurrentScreen("Weight")}>
+            <Feather
+              name="trending-up"
+              size={24}
+              color={currentScreen === "Weight" ? "#007AFF" : "#666"}
+            />
+            <Text
+              style={[
+                styles.navText,
+                currentScreen === "Weight" && styles.activeNavText,
+              ]}
+            >
+              Weight
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setCurrentScreen("Work")}>
+            <Feather
+              name="bookmark"
+              size={24}
+              color={currentScreen === "Work" ? "#007AFF" : "#666"}
+            />
+            <Text
+              style={[
+                styles.navText,
+                currentScreen === "Work" && styles.activeNavText,
+              ]}
+            >
+              Work
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
