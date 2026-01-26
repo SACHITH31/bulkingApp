@@ -1,12 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import {
-  Animated,
-  Image,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Animated, StatusBar, StyleSheet, Text, View } from "react-native";
 
 export default function LoadingScreen() {
   // Animation values
@@ -55,11 +48,11 @@ export default function LoadingScreen() {
         }}
       >
         <View style={styles.logoWrapper}>
-          <Image
+          {/* <Image
             source={require("../../assets/logo.jpeg")} // Make sure path is correct
             style={styles.logoImage}
             resizeMode="contain"
-          />
+          /> */}
         </View>
         <Text style={styles.appName}>
           Mass<Text style={styles.highlight}>Flow</Text>
@@ -84,18 +77,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  logoWrapper: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
-    // Adds a glow effect matching the logo colors
-    shadowColor: "#00FFCC",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
-  },
-  logoImage: { width: "100%", height: "100%", borderRadius: 80 },
+  // logoWrapper: {
+  //   width: 150,
+  //   height: 150,
+  //   marginBottom: 20,
+  //   // Adds a glow effect matching the logo colors
+  //   shadowColor: "#00FFCC",
+  //   shadowOffset: { width: 0, height: 0 },
+  //   shadowOpacity: 0.6,
+  //   shadowRadius: 20,
+  //   elevation: 15,
+  // },
+  // logoImage: { width: "100%", height: "100%", borderRadius: 80 },
   appName: {
     color: "white",
     fontSize: 42,
@@ -118,7 +111,7 @@ const styles = StyleSheet.create({
   },
   fill: { height: "100%", backgroundColor: "#00FFCC" },
   loadingText: {
-    color: "#444",
+    color: "#a5a4a4",
     fontSize: 10,
     marginTop: 15,
     letterSpacing: 3,

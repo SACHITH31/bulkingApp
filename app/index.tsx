@@ -78,10 +78,13 @@ export default function App() {
 
       {/* GLOBAL HEADER - Always Visible */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Bulking_App</Text>
-          <Text style={styles.headerSub}>Target: 63kg • July 2nd</Text>
+        <View style={styles.titleRow}>
+          <View>
+            <Text style={styles.headerTitle}>MassFlow</Text>
+            <Text style={styles.headerSub}>Target: 63kg • July 2nd</Text>
+          </View>
         </View>
+
         <View style={styles.weightBadge}>
           <Text style={styles.weightText}>{userWeight}</Text>
         </View>
@@ -189,18 +192,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20, // Reduced because SafeAreaView handles the notch
+    paddingTop: 10,
     paddingBottom: 15,
   },
-  headerTitle: { color: "white", fontSize: 28, fontWeight: "bold" },
-  headerSub: { color: "#666", fontSize: 14 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitle: {
+    color: "white",
+    fontSize: 32,
+    fontWeight: "bold",
+    letterSpacing: -0.5,
+    marginTop: 30,
+  },
+  headerSub: {
+    color: "#666",
+    fontSize: 14,
+    marginTop: -1,
+    marginBottom: 5,
+  },
   weightBadge: {
     backgroundColor: "#1C1C1E",
     paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
   },
-  weightText: { color: "white", fontWeight: "bold", fontSize: 18 },
+  weightText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
   navBar: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -209,24 +231,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: "#333",
     alignItems: "center",
-    height: 80, // Set height for better spacing
+    height: 90,
   },
   navItem: { alignItems: "center", justifyContent: "center" },
   navText: { color: "#666", fontSize: 10, textAlign: "center", marginTop: 4 },
   activeNavText: { color: "#007AFF" },
   floatingAdd: {
     backgroundColor: "#007AFF",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: -45,
-    elevation: 5,
+    marginTop: -50,
+    elevation: 8,
     shadowColor: "#007AFF",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
   },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 });
