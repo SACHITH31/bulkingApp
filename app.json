@@ -4,21 +4,21 @@
     "slug": "BulkingApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.jpeg",
+    "icon": "./assets/icon.png",
     "scheme": "bulkingapp",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.massflow"
+      "bundleIdentifier": "com.sachith31.massflow"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.jpeg",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yourname.massflow"
+      "package": "com.sachith31.massflow"
     },
     "web": {
       "output": "static"
@@ -28,8 +28,9 @@
       [
         "expo-splash-screen",
         {
+          "image": "./assets/icon.png",
           "backgroundColor": "#000000",
-          "imageWidth": 0,
+          "imageWidth": 200,
           "resizeMode": "contain"
         }
       ],
@@ -37,7 +38,13 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "11446148-d172-44a8-a949-f565a4128d5f"
+      }
     }
   }
 }
