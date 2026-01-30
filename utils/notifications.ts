@@ -45,38 +45,44 @@ export async function registerForPushNotificationsAsync() {
   return false; // Simulator/Emulator handling
 }
 
-// 3. The Logic Engine: Schedule 1hr and 30min before
+// 3. The Logic Engine: Multi-stage Reminders
 export async function scheduleTodoReminders(
   todoTitle: string,
   targetTime: Date,
 ) {
   const now = new Date();
 
-  // Calculate reminder times
-  const oneHourBefore = new Date(targetTime.getTime() - 60 * 60 * 1000);
-  const thirtyMinBefore = new Date(targetTime.getTime() - 30 * 60 * 1000);
+  // Define our reminder offsets in minutes
+  const reminders = [
+    { label: "1 Hour", minutes: 60, emoji: "⏳" },
+    { label: "30 Minutes", minutes: 30, emoji: "⚡" },
+    { label: "20 Minutes", minutes: 20, emoji: "🏃" },
+    { label: "5 Minutes", minutes: 5, emoji: "🚨" },
+  ];
 
-  // Schedule "1 Hour Before" (Only if the time hasn't passed yet)
-  if (oneHourBefore > now) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "⏳ 1 Hour Left",
-        body: `Get ready: "${todoTitle}" is due in an hour.`,
-        sound: true,
-      },
-      trigger: { date: oneHourBefore },
-    });
+  let scheduledCount = 0;
+
+  for (const reminder of reminders) {
+    const reminderTime = new Date(
+      targetTime.getTime() - reminder.minutes * 60 * 1000,
+    );
+
+    // Only schedule if the reminder time is still in the future
+    if (reminderTime > now) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `${reminder.emoji} ${reminder.label} Left`,
+          body: `Keep going! "${todoTitle}" starts in ${reminder.label}.`,
+          sound: true,
+          priority: Notifications.AndroidImportance.MAX,
+        },
+        trigger: { date: reminderTime },
+      });
+      scheduledCount++;
+    }
   }
 
-  // Schedule "30 Minutes Before"
-  if (thirtyMinBefore > now) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "⚡ 30 Minutes Left",
-        body: `Final push! "${todoTitle}" is coming up.`,
-        sound: true,
-      },
-      trigger: { date: thirtyMinBefore },
-    });
-  }
+  console.log(
+    `[MassFlow] Scheduled ${scheduledCount} alerts for: ${todoTitle}`,
+  );
 }
