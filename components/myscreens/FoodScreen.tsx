@@ -3,15 +3,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
 export default function FoodScreen() {
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [activePeriodIndex, setActivePeriodIndex] = useState<number | null>(
+    null,
+  );
+
+  // Form states for new food
+  const [newName, setNewName] = useState("");
+  const [newKcal, setNewKcal] = useState("");
+  const [newPro, setNewPro] = useState("");
+
   const [dietPlan, setDietPlan] = useState([
     {
       period: "After Bed",
@@ -249,14 +261,10 @@ export default function FoodScreen() {
       const savedDate = await AsyncStorage.getItem("@last_food_date");
       const savedPlan = await AsyncStorage.getItem("@diet_plan_state");
 
-      // Check if it's a new day
       if (savedDate !== todayDate) {
-        // It's a new day! Keep default plan (all unchecked)
         await AsyncStorage.setItem("@last_food_date", todayDate);
-        // Clear old progress
         await AsyncStorage.removeItem("@diet_plan_state");
       } else if (savedPlan) {
-        // Same day, load previous selections
         setDietPlan(JSON.parse(savedPlan));
       }
     } catch (e) {
@@ -287,10 +295,33 @@ export default function FoodScreen() {
       section.completed = section.items
         .filter((i) => !i.optional)
         .every((i) => i.done);
-
       setDietPlan(updatedPlan);
-      saveData(updatedPlan); // Save to storage immediately
+      saveData(updatedPlan);
     }
+  };
+
+  const addCustomFood = () => {
+    if (!newName || activePeriodIndex === null) return;
+
+    const updatedPlan = [...dietPlan];
+    const newItem = {
+      id: Date.now(),
+      name: newName,
+      kcal: parseInt(newKcal) || 0,
+      pro: parseInt(newPro) || 0,
+      done: true, // Mark as done immediately since user just ate it
+      optional: false,
+    };
+
+    updatedPlan[activePeriodIndex].items.push(newItem);
+    setDietPlan(updatedPlan);
+    saveData(updatedPlan);
+
+    // Reset Form
+    setNewName("");
+    setNewKcal("");
+    setNewPro("");
+    setModalVisible(false);
   };
 
   const allItems = dietPlan.flatMap((p) => p.items);
@@ -313,6 +344,7 @@ export default function FoodScreen() {
 
   return (
     <View style={styles.container}>
+      {/* HEADER STATS */}
       <View style={styles.statContainer}>
         <View style={styles.statBox}>
           <View style={styles.labelRow}>
@@ -331,7 +363,6 @@ export default function FoodScreen() {
             />
           </View>
         </View>
-
         <View style={styles.statBox}>
           <View style={styles.labelRow}>
             <Text style={styles.statLabel}>Protein</Text>
@@ -359,12 +390,16 @@ export default function FoodScreen() {
                 <Text style={styles.sectionTitle}>{section.period}</Text>
                 <Text style={styles.sectionTime}>{section.time}</Text>
               </View>
-              {section.completed && (
-                <View style={styles.doneBadge}>
-                  <Feather name="check-circle" size={16} color="#34C759" />
-                  <Text style={styles.doneText}>Done</Text>
-                </View>
-              )}
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => {
+                  setActivePeriodIndex(pIdx);
+                  setModalVisible(true);
+                }}
+              >
+                <Feather name="plus-circle" size={18} color="#007AFF" />
+                <Text style={styles.editText}>Add Custom</Text>
+              </TouchableOpacity>
             </View>
 
             {section.items.map((item) => (
@@ -398,6 +433,55 @@ export default function FoodScreen() {
         ))}
         <View style={{ height: 60 }} />
       </ScrollView>
+
+      {/* ADD FOOD MODAL */}
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Custom Food</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Food Name (e.g. Omelette)"
+              placeholderTextColor="#666"
+              value={newName}
+              onChangeText={setNewName}
+            />
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
+              <TextInput
+                style={[styles.modalInput, { width: "48%" }]}
+                placeholder="Kcal"
+                placeholderTextColor="#666"
+                keyboardType="numeric"
+                value={newKcal}
+                onChangeText={setNewKcal}
+              />
+              <TextInput
+                style={[styles.modalInput, { width: "48%" }]}
+                placeholder="Protein (g)"
+                placeholderTextColor="#666"
+                keyboardType="numeric"
+                value={newPro}
+                onChangeText={setNewPro}
+              />
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={{ color: "white" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={addCustomFood}>
+                <Text style={{ color: "white", fontWeight: "bold" }}>
+                  Add to Meal
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -439,6 +523,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { color: "#007AFF", fontSize: 17, fontWeight: "bold" },
   sectionTime: { color: "#666", fontSize: 12, marginTop: 2 },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2C2C2E",
+    padding: 6,
+    borderRadius: 8,
+  },
+  editText: {
+    color: "#007AFF",
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: "600",
+  },
   itemRow: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
   checkbox: {
     width: 24,
@@ -454,11 +551,51 @@ const styles = StyleSheet.create({
   itemName: { color: "white", fontSize: 15, fontWeight: "500" },
   itemMeta: { color: "#555", fontSize: 11, marginTop: 2 },
   strikethrough: { color: "#666", textDecorationLine: "line-through" },
-  doneBadge: { flexDirection: "row", alignItems: "center" },
-  doneText: {
-    color: "#34C759",
-    fontSize: 12,
-    marginLeft: 5,
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#1C1C1E",
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  modalTitle: {
+    color: "white",
+    fontSize: 20,
     fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalInput: {
+    backgroundColor: "#2C2C2E",
+    color: "white",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  cancelBtn: {
+    padding: 15,
+    borderRadius: 10,
+    width: "45%",
+    alignItems: "center",
+    backgroundColor: "#444",
+  },
+  saveBtn: {
+    padding: 15,
+    borderRadius: 10,
+    width: "45%",
+    alignItems: "center",
+    backgroundColor: "#007AFF",
   },
 });

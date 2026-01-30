@@ -15,16 +15,31 @@ import LoadingScreen from "../components/myscreens/LoadingScreen";
 import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
+// Import notification utilities
+import {
+  registerForPushNotificationsAsync,
+  scheduleDailyHealthReminders,
+} from "../utils/notifications";
+
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("Home");
   const [userWeight, setUserWeight] = useState("54.00");
   const [editingTask, setEditingTask] = useState(null);
 
+  // --- UPDATED EFFECT: SETUP NOTIFICATIONS & LOADING ---
   useEffect(() => {
+    const setupApp = async () => {
+      // Register for permissions and start the daily recurring alerts cycle
+      await registerForPushNotificationsAsync();
+      await scheduleDailyHealthReminders();
+    };
+
+    setupApp();
+
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 5000); // 5 second animation in the loading screen
+    }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
