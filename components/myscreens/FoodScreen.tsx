@@ -19,7 +19,7 @@ export default function FoodScreen() {
     null,
   );
 
-  // Form states for new food
+  // Form states for custom food
   const [newName, setNewName] = useState("");
   const [newKcal, setNewKcal] = useState("");
   const [newPro, setNewPro] = useState("");
@@ -28,7 +28,6 @@ export default function FoodScreen() {
     {
       period: "After Bed",
       time: "5:00 AM",
-      completed: false,
       items: [
         {
           id: 1,
@@ -43,7 +42,6 @@ export default function FoodScreen() {
     {
       period: "Breakfast",
       time: "7:30 AM",
-      completed: false,
       items: [
         {
           id: 2,
@@ -82,7 +80,6 @@ export default function FoodScreen() {
     {
       period: "College Snack",
       time: "10:40 AM",
-      completed: false,
       items: [
         {
           id: 6,
@@ -105,7 +102,6 @@ export default function FoodScreen() {
     {
       period: "Lunch",
       time: "1:00 PM",
-      completed: false,
       items: [
         {
           id: 8,
@@ -144,7 +140,6 @@ export default function FoodScreen() {
     {
       period: "Evening Snack",
       time: "4:30 PM",
-      completed: false,
       items: [
         {
           id: 12,
@@ -167,7 +162,6 @@ export default function FoodScreen() {
     {
       period: "Evening Shake",
       time: "6:00 PM",
-      completed: false,
       items: [
         {
           id: 14,
@@ -206,7 +200,6 @@ export default function FoodScreen() {
     {
       period: "Dinner",
       time: "7:30 PM",
-      completed: false,
       items: [
         {
           id: 18,
@@ -237,7 +230,6 @@ export default function FoodScreen() {
     {
       period: "Before Bed",
       time: "9:30 PM",
-      completed: false,
       items: [
         {
           id: 21,
@@ -264,6 +256,7 @@ export default function FoodScreen() {
       if (savedDate !== todayDate) {
         await AsyncStorage.setItem("@last_food_date", todayDate);
         await AsyncStorage.removeItem("@diet_plan_state");
+        await AsyncStorage.removeItem("@daily_summary");
       } else if (savedPlan) {
         setDietPlan(JSON.parse(savedPlan));
       }
@@ -280,6 +273,23 @@ export default function FoodScreen() {
         "@diet_plan_state",
         JSON.stringify(updatedPlan),
       );
+
+      const allItems = updatedPlan.flatMap((p: any) => p.items);
+      const totalKcal = allItems.reduce(
+        (sum: number, i: any) => (i.done ? sum + i.kcal : sum),
+        0,
+      );
+      const totalPro = allItems.reduce(
+        (sum: number, i: any) => (i.done ? sum + i.pro : sum),
+        0,
+      );
+
+      const summary = {
+        kcal: totalKcal,
+        protein: totalPro,
+        date: new Date().toDateString(),
+      };
+      await AsyncStorage.setItem("@daily_summary", JSON.stringify(summary));
     } catch (e) {
       console.log("Error saving food data");
     }
@@ -287,14 +297,9 @@ export default function FoodScreen() {
 
   const toggleItem = (periodIndex: number, itemId: number) => {
     const updatedPlan = [...dietPlan];
-    const section = updatedPlan[periodIndex];
-    const item = section.items.find((i) => i.id === itemId);
-
+    const item = updatedPlan[periodIndex].items.find((i) => i.id === itemId);
     if (item) {
       item.done = !item.done;
-      section.completed = section.items
-        .filter((i) => !i.optional)
-        .every((i) => i.done);
       setDietPlan(updatedPlan);
       saveData(updatedPlan);
     }
@@ -305,11 +310,11 @@ export default function FoodScreen() {
 
     const updatedPlan = [...dietPlan];
     const newItem = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       name: newName,
       kcal: parseInt(newKcal) || 0,
       pro: parseInt(newPro) || 0,
-      done: true, // Mark as done immediately since user just ate it
+      done: true,
       optional: false,
     };
 
@@ -317,11 +322,10 @@ export default function FoodScreen() {
     setDietPlan(updatedPlan);
     saveData(updatedPlan);
 
-    // Reset Form
+    // Reset fields to allow adding another item immediately
     setNewName("");
     setNewKcal("");
     setNewPro("");
-    setModalVisible(false);
   };
 
   const allItems = dietPlan.flatMap((p) => p.items);
@@ -334,17 +338,15 @@ export default function FoodScreen() {
     0,
   );
 
-  if (loading) {
+  if (loading)
     return (
-      <View style={[styles.container, { justifyContent: "center" }]}>
+      <View style={styles.loader}>
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
-  }
 
   return (
     <View style={styles.container}>
-      {/* HEADER STATS */}
       <View style={styles.statContainer}>
         <View style={styles.statBox}>
           <View style={styles.labelRow}>
@@ -391,14 +393,12 @@ export default function FoodScreen() {
                 <Text style={styles.sectionTime}>{section.time}</Text>
               </View>
               <TouchableOpacity
-                style={styles.editBtn}
                 onPress={() => {
                   setActivePeriodIndex(pIdx);
                   setModalVisible(true);
                 }}
               >
-                <Feather name="plus-circle" size={18} color="#007AFF" />
-                <Text style={styles.editText}>Add Custom</Text>
+                <Feather name="edit-3" size={20} color="#007AFF" />
               </TouchableOpacity>
             </View>
 
@@ -431,24 +431,25 @@ export default function FoodScreen() {
             ))}
           </View>
         ))}
-        <View style={{ height: 60 }} />
+        <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* ADD FOOD MODAL */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Custom Food</Text>
+            <Text style={styles.modalTitle}>
+              Add Food to{" "}
+              {activePeriodIndex !== null && dietPlan[activePeriodIndex].period}
+            </Text>
+
             <TextInput
               style={styles.modalInput}
-              placeholder="Food Name (e.g. Omelette)"
+              placeholder="Food Name"
               placeholderTextColor="#666"
               value={newName}
               onChangeText={setNewName}
             />
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
+            <View style={styles.row}>
               <TextInput
                 style={[styles.modalInput, { width: "48%" }]}
                 placeholder="Kcal"
@@ -466,19 +467,31 @@ export default function FoodScreen() {
                 onChangeText={setNewPro}
               />
             </View>
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setNewName("");
+                  setNewKcal("");
+                  setNewPro("");
+                }}
               >
-                <Text style={{ color: "white" }}>Cancel</Text>
+                <Text style={{ color: "white", fontWeight: "bold" }}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
+
               <TouchableOpacity style={styles.saveBtn} onPress={addCustomFood}>
                 <Text style={{ color: "white", fontWeight: "bold" }}>
-                  Add to Meal
+                  Add Item
                 </Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.modalNote}>
+              Tip: You can add multiple items before closing.
+            </Text>
           </View>
         </View>
       </Modal>
@@ -488,6 +501,12 @@ export default function FoodScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
+  loader: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   statContainer: { marginVertical: 20 },
   statBox: { marginBottom: 15 },
   labelRow: {
@@ -523,19 +542,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { color: "#007AFF", fontSize: 17, fontWeight: "bold" },
   sectionTime: { color: "#666", fontSize: 12, marginTop: 2 },
-  editBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2C2C2E",
-    padding: 6,
-    borderRadius: 8,
-  },
-  editText: {
-    color: "#007AFF",
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: "600",
-  },
   itemRow: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
   checkbox: {
     width: 24,
@@ -551,23 +557,22 @@ const styles = StyleSheet.create({
   itemName: { color: "white", fontSize: 15, fontWeight: "500" },
   itemMeta: { color: "#555", fontSize: 11, marginTop: 2 },
   strikethrough: { color: "#666", textDecorationLine: "line-through" },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0,0,0,0.9)",
     justifyContent: "center",
     padding: 20,
   },
   modalContent: {
     backgroundColor: "#1C1C1E",
-    padding: 20,
-    borderRadius: 20,
+    padding: 25,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#333",
   },
   modalTitle: {
     color: "white",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
@@ -576,26 +581,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#2C2C2E",
     color: "white",
     padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
+    borderRadius: 12,
+    marginBottom: 12,
   },
+  row: { flexDirection: "row", justifyContent: "space-between" },
   modalActions: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
   },
   cancelBtn: {
+    backgroundColor: "#444",
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     width: "45%",
     alignItems: "center",
-    backgroundColor: "#444",
   },
   saveBtn: {
+    backgroundColor: "#007AFF",
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     width: "45%",
     alignItems: "center",
-    backgroundColor: "#007AFF",
+  },
+  modalNote: {
+    color: "#666",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 15,
+    fontStyle: "italic",
   },
 });

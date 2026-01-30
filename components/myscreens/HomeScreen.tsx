@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 
-// Enable LayoutAnimation for Android
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -28,7 +27,7 @@ export default function HomeScreen({ onEditTask }: any) {
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [allTaskGroups, setAllTaskGroups] = useState<any[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null); // Track which card is open
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isFocused) {
@@ -140,83 +139,93 @@ export default function HomeScreen({ onEditTask }: any) {
       >
         <Text style={styles.sectionTitle}>{activeTab} Tasks</Text>
 
-        {filteredTasks.map((group) => {
-          const isExpanded = expandedId === group.id;
-          return (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              key={group.id}
-              style={styles.taskCard}
-              onPress={() => toggleExpand(group.id)}
-            >
-              <View style={styles.taskHeader}>
-                <TouchableOpacity
-                  style={[
-                    styles.iconCircle,
-                    group.completed && styles.iconCircleChecked,
-                  ]}
-                  onPress={() => toggleComplete(group.id)}
-                >
-                  <Feather
-                    name={group.completed ? "check" : "calendar"}
-                    size={16}
-                    color={group.completed ? "#34C759" : "#007AFF"}
-                  />
-                </TouchableOpacity>
-
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text
+        {filteredTasks.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Feather name="info" size={40} color="#1C1C1E" />
+            <Text style={styles.emptyText}>
+              There are no todos in {activeTab.toLowerCase()}
+            </Text>
+          </View>
+        ) : (
+          filteredTasks.map((group) => {
+            const isExpanded = expandedId === group.id;
+            return (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                key={group.id}
+                style={styles.taskCard}
+                onPress={() => toggleExpand(group.id)}
+              >
+                <View style={styles.taskHeader}>
+                  <TouchableOpacity
                     style={[
-                      styles.taskTitle,
-                      group.completed && styles.textCompleted,
+                      styles.iconCircle,
+                      group.completed && styles.iconCircleChecked,
                     ]}
+                    onPress={() => toggleComplete(group.id)}
                   >
-                    {group.title}
-                  </Text>
-                  <Text style={styles.taskSub}>
-                    {new Date(group.date).toDateString()} • {group.todos.length}{" "}
-                    items
-                  </Text>
+                    <Feather
+                      name={group.completed ? "check" : "calendar"}
+                      size={16}
+                      color={group.completed ? "#34C759" : "#007AFF"}
+                    />
+                  </TouchableOpacity>
+
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text
+                      style={[
+                        styles.taskTitle,
+                        group.completed && styles.textCompleted,
+                      ]}
+                    >
+                      {group.title}
+                    </Text>
+                    <Text style={styles.taskSub}>
+                      {new Date(group.date).toDateString()} •{" "}
+                      {group.todos.length} items
+                    </Text>
+                  </View>
+
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      onPress={() => onEditTask(group)}
+                      style={styles.actionBtn}
+                    >
+                      <Feather name="edit-2" size={18} color="#AAA" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => deleteGroup(group.id)}
+                      style={styles.actionBtn}
+                    >
+                      <Feather name="trash-2" size={18} color="#FF3B30" />
+                    </TouchableOpacity>
+                    <Feather
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={20}
+                      color="#666"
+                      style={{ marginLeft: 10 }}
+                    />
+                  </View>
                 </View>
 
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    onPress={() => onEditTask(group)}
-                    style={styles.actionBtn}
-                  >
-                    <Feather name="edit-2" size={18} color="#AAA" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => deleteGroup(group.id)}
-                    style={styles.actionBtn}
-                  >
-                    <Feather name="trash-2" size={18} color="#FF3B30" />
-                  </TouchableOpacity>
-                  <Feather
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color="#666"
-                    style={{ marginLeft: 10 }}
-                  />
-                </View>
-              </View>
-
-              {/* COLLAPSIBLE SECTION */}
-              {isExpanded && (
-                <View style={styles.expandedContent}>
-                  {group.todos.map((todo: any, idx: number) => (
-                    <View key={idx} style={styles.todoItem}>
-                      <Text style={styles.todoName}>• {todo.name}</Text>
-                      {todo.description ? (
-                        <Text style={styles.todoDesc}>{todo.description}</Text>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+                {isExpanded && (
+                  <View style={styles.expandedContent}>
+                    {group.todos.map((todo: any, idx: number) => (
+                      <View key={idx} style={styles.todoItem}>
+                        <Text style={styles.todoName}>• {todo.name}</Text>
+                        {todo.description ? (
+                          <Text style={styles.todoDesc}>
+                            {todo.description}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );
@@ -284,4 +293,17 @@ const styles = StyleSheet.create({
   todoItem: { marginBottom: 10 },
   todoName: { color: "#EEE", fontSize: 14, fontWeight: "600" },
   todoDesc: { color: "#888", fontSize: 12, marginLeft: 12, marginTop: 2 },
+  // New Styles for Empty State
+  emptyContainer: {
+    marginTop: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    color: "#504f4f",
+    fontSize: 15,
+    marginTop: 12,
+    fontWeight: "500",
+    textAlign: "center",
+  },
 });
