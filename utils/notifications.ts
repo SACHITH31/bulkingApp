@@ -1,8 +1,7 @@
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
 
-// 1. Configure how notifications appear when the app is OPEN
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -11,7 +10,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// 2. The Permission & Channel Setup (Critical for Android 13+)
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
@@ -21,68 +19,61 @@ export async function registerForPushNotificationsAsync() {
       lightColor: "#FF231F7C",
     });
   }
-
   if (Device.isDevice) {
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
-
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
-
-    if (finalStatus !== "granted") {
-      Alert.alert(
-        "Permission needed",
-        "Enable notifications to get reminders for your habits!",
-      );
-      return false;
-    }
-    return true;
+    return finalStatus === "granted";
   }
-
-  return false; // Simulator/Emulator handling
+  return false;
 }
 
-// 3. The Logic Engine: Multi-stage Reminders
 export async function scheduleTodoReminders(
   todoTitle: string,
   targetTime: Date,
 ) {
   const now = new Date();
+  const finalTrigger = new Date();
 
-  // Define our reminder offsets in minutes
+  // Set the hours and minutes from the picker onto a fresh date object
+  finalTrigger.setHours(targetTime.getHours(), targetTime.getMinutes(), 0, 0);
+
+  // If time passed today, move to tomorrow
+  if (finalTrigger <= now) {
+    finalTrigger.setDate(now.getDate() + 1);
+  }
+
   const reminders = [
-    { label: "1 Hour", minutes: 60, emoji: "⏳" },
-    { label: "30 Minutes", minutes: 30, emoji: "⚡" },
-    { label: "20 Minutes", minutes: 20, emoji: "🏃" },
+    { label: "NOW", minutes: 0, emoji: "🎯" },
     { label: "5 Minutes", minutes: 5, emoji: "🚨" },
+    { label: "20 Minutes", minutes: 20, emoji: "🏃" },
   ];
-
-  let scheduledCount = 0;
 
   for (const reminder of reminders) {
     const reminderTime = new Date(
-      targetTime.getTime() - reminder.minutes * 60 * 1000,
+      finalTrigger.getTime() - reminder.minutes * 60 * 1000,
     );
-
-    // Only schedule if the reminder time is still in the future
     if (reminderTime > now) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `${reminder.emoji} ${reminder.label} Left`,
-          body: `Keep going! "${todoTitle}" starts in ${reminder.label}.`,
-          sound: true,
-          priority: Notifications.AndroidImportance.MAX,
-        },
-        trigger: { date: reminderTime },
-      });
-      scheduledCount++;
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title:
+              reminder.minutes === 0
+                ? `🎯 ${todoTitle}`
+                : `${reminder.emoji} ${reminder.label} Left`,
+            body: `Don't forget your task! 💪`,
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.MAX,
+          },
+          trigger: { date: reminderTime },
+        });
+      } catch (e) {
+        console.log("Reminder skipped");
+      }
     }
   }
-
-  console.log(
-    `[MassFlow] Scheduled ${scheduledCount} alerts for: ${todoTitle}`,
-  );
 }

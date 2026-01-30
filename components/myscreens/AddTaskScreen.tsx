@@ -23,7 +23,7 @@ interface TodoItem {
   id: string;
   name: string;
   description: string;
-  time: string; // New field to store the specific time
+  time: string;
 }
 
 export default function AddTaskScreen({ onGoBack, editTask }: any) {
@@ -31,7 +31,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // State for the individual Todo Time Pickers
   const [activeTodoIndex, setActiveTodoIndex] = useState<number | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -40,12 +39,11 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       id: Date.now().toString(),
       name: "",
       description: "",
-      time: new Date().toISOString(),
+      time: new Date().toString(),
     },
   ]);
 
   useEffect(() => {
-    // Request notification permissions on mount
     registerForPushNotificationsAsync();
 
     if (editTask) {
@@ -57,15 +55,30 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
-    if (selectedDate) setDate(selectedDate);
+    if (selectedDate) {
+      // FEATURE: Prevent selecting past dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const pickedDate = new Date(selectedDate);
+      pickedDate.setHours(0, 0, 0, 0);
+
+      if (pickedDate < today) {
+        Alert.alert(
+          "Invalid Date",
+          "You cannot schedule tasks for past dates.",
+        );
+        setDate(new Date()); // Reset to today
+      } else {
+        setDate(selectedDate);
+      }
+    }
   };
 
-  // Logic for individual Todo Time Change
   const onChangeTodoTime = (event: any, selectedTime?: Date) => {
     setShowTimePicker(false);
     if (selectedTime && activeTodoIndex !== null) {
       const updatedTodos = [...todos];
-      updatedTodos[activeTodoIndex].time = selectedTime.toISOString();
+      updatedTodos[activeTodoIndex].time = selectedTime.toString();
       setTodos(updatedTodos);
       setActiveTodoIndex(null);
     }
@@ -78,7 +91,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
         id: Date.now().toString(),
         name: "",
         description: "",
-        time: new Date().toISOString(),
+        time: new Date().toString(),
       },
     ]);
   };
@@ -102,13 +115,26 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       return;
     }
 
+    const now = new Date();
+    let scheduledForTomorrow = false;
+
     try {
       const filteredTodos = todos.filter((t) => t.name.trim() !== "");
 
-      // --- CRUCIAL: Schedule Notifications for each valid Todo ---
       for (const item of filteredTodos) {
         if (item.name.trim() !== "") {
-          await scheduleTodoReminders(item.name, new Date(item.time));
+          const localTime = new Date(item.time);
+
+          // FEATURE: Check if the time has already passed today
+          if (
+            localTime.getHours() < now.getHours() ||
+            (localTime.getHours() === now.getHours() &&
+              localTime.getMinutes() <= now.getMinutes())
+          ) {
+            scheduledForTomorrow = true;
+          }
+
+          await scheduleTodoReminders(item.name, localTime);
         }
       }
 
@@ -131,10 +157,16 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
       await AsyncStorage.setItem("@task_groups", JSON.stringify(tasks));
 
-      Alert.alert("Success", "Task Group saved & Reminders set! 🚀", [
+      // FEATURE: Dynamic success message
+      const successMsg = scheduledForTomorrow
+        ? "Task saved! Since the time already passed today, reminders are set for tomorrow morning. 🌅"
+        : "Task Group saved & Reminders set! 🚀";
+
+      Alert.alert("Success", successMsg, [
         { text: "OK", onPress: () => onGoBack() },
       ]);
     } catch (e) {
+      console.error(e);
       Alert.alert("Error", "Could not save task or set reminders");
     }
   };
@@ -166,7 +198,12 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
         </TouchableOpacity>
 
         {showDatePicker && (
-          <DateTimePicker value={date} mode="date" onChange={onChangeDate} />
+          <DateTimePicker
+            value={date}
+            mode="date"
+            onChange={onChangeDate}
+            minimumDate={new Date()} // UI level block for past dates
+          />
         )}
 
         <Text style={styles.subLabel}>NESTED TODOS (SET TIME FOR ALERTS)</Text>
@@ -208,7 +245,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
               onChangeText={(v) => updateTodo(index, "description", v)}
             />
 
-            {/* Display selected time for this todo */}
             <Text
               style={{
                 color: "#007AFF",
