@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// Import our notification helpers
 import {
   registerForPushNotificationsAsync,
   scheduleTodoReminders,
@@ -45,7 +44,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
   useEffect(() => {
     registerForPushNotificationsAsync();
-
     if (editTask) {
       setTitle(editTask.title);
       setDate(new Date(editTask.date));
@@ -56,7 +54,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
   const onChangeDate = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      // FEATURE: Prevent selecting past dates
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const pickedDate = new Date(selectedDate);
@@ -67,7 +64,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
           "Invalid Date",
           "You cannot schedule tasks for past dates.",
         );
-        setDate(new Date()); // Reset to today
+        setDate(new Date());
       } else {
         setDate(selectedDate);
       }
@@ -109,42 +106,16 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     }
   };
 
-  const saveTaskGroup = async () => {
-    if (!title.trim()) {
-      Alert.alert("Required", "Please enter a Group Title");
-      return;
-    }
-
-    const now = new Date();
-    let scheduledForTomorrow = false;
-
+  // --- CORRECTED SAVE LOGIC ---
+  const performSave = async (filteredTodos: TodoItem[], finalDate: Date) => {
     try {
-      const filteredTodos = todos.filter((t) => t.name.trim() !== "");
-
-      for (const item of filteredTodos) {
-        if (item.name.trim() !== "") {
-          const localTime = new Date(item.time);
-
-          // FEATURE: Check if the time has already passed today
-          if (
-            localTime.getHours() < now.getHours() ||
-            (localTime.getHours() === now.getHours() &&
-              localTime.getMinutes() <= now.getMinutes())
-          ) {
-            scheduledForTomorrow = true;
-          }
-
-          await scheduleTodoReminders(item.name, localTime);
-        }
-      }
-
       const existing = await AsyncStorage.getItem("@task_groups");
       let tasks = existing ? JSON.parse(existing) : [];
 
       const taskData = {
         id: editTask ? editTask.id : Date.now().toString(),
         title,
-        date: date.toISOString(),
+        date: finalDate.toISOString(), // SAVING THE CORRECT DATE (TODAY OR TOMORROW)
         todos: filteredTodos,
         completed: editTask ? editTask.completed : false,
       };
@@ -157,17 +128,63 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
       await AsyncStorage.setItem("@task_groups", JSON.stringify(tasks));
 
-      // FEATURE: Dynamic success message
-      const successMsg = scheduledForTomorrow
-        ? "Task saved! Since the time already passed today, reminders are set for tomorrow morning. 🌅"
-        : "Task Group saved & Reminders set! 🚀";
+      // Schedule notifications using the specific final date
+      for (const item of filteredTodos) {
+        await scheduleTodoReminders(item.name, new Date(item.time));
+      }
 
-      Alert.alert("Success", successMsg, [
-        { text: "OK", onPress: () => onGoBack() },
-      ]);
+      onGoBack();
     } catch (e) {
-      console.error(e);
-      Alert.alert("Error", "Could not save task or set reminders");
+      Alert.alert("Error", "Could not save task.");
+    }
+  };
+
+  const saveTaskGroup = async () => {
+    if (!title.trim()) {
+      Alert.alert("Required", "Please enter a Group Title");
+      return;
+    }
+
+    const now = new Date();
+    const filteredTodos = todos.filter((t) => t.name.trim() !== "");
+    let containsPastTime = false;
+
+    // Only check past time if the selected date is TODAY
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      for (const item of filteredTodos) {
+        const itemTime = new Date(item.time);
+        if (
+          itemTime.getHours() < now.getHours() ||
+          (itemTime.getHours() === now.getHours() &&
+            itemTime.getMinutes() <= now.getMinutes())
+        ) {
+          containsPastTime = true;
+          break;
+        }
+      }
+    }
+
+    if (containsPastTime) {
+      Alert.alert(
+        "Time Already Passed",
+        "The time selected has already passed for today. Do you want to move this task to tomorrow?",
+        [
+          { text: "Change Time", style: "cancel" },
+          {
+            text: "Set for Tomorrow",
+            onPress: () => {
+              // CREATE TOMORROW'S DATE
+              const tomorrow = new Date(date);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              performSave(filteredTodos, tomorrow);
+            },
+          },
+        ],
+      );
+    } else {
+      performSave(filteredTodos, date);
     }
   };
 
@@ -202,7 +219,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
             value={date}
             mode="date"
             onChange={onChangeDate}
-            minimumDate={new Date()} // UI level block for past dates
+            minimumDate={new Date()}
           />
         )}
 
