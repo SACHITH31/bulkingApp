@@ -315,7 +315,7 @@ export default function WorkScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 20 },
-  header: { marginTop: 40, marginBottom: 20 },
+  header: { marginBottom: 20 },
   dayLabel: {
     color: "#007AFF",
     fontSize: 12,

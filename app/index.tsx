@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 15,
+    paddingBottom: 5,
   },
   titleRow: {
     flexDirection: "row",

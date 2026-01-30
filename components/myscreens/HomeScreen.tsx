@@ -224,7 +224,12 @@ export default function HomeScreen({ onEditTask }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
-  searchRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  searchRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   searchBar: {
     flex: 1,
     flexDirection: "row",
