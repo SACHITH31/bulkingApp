@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 5000); // 5 second animation as requested
+    }, 5000); // 5 second animation in the loading screen
     return () => clearTimeout(timer);
   }, []);
 
