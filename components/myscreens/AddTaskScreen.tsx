@@ -13,23 +13,41 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+// Import our notification helpers
+import {
+  registerForPushNotificationsAsync,
+  scheduleTodoReminders,
+} from "../../utils/notifications";
 
 interface TodoItem {
   id: string;
   name: string;
   description: string;
+  time: string; // New field to store the specific time
 }
 
 export default function AddTaskScreen({ onGoBack, editTask }: any) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  // State handles both name and description for each todo
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // State for the individual Todo Time Pickers
+  const [activeTodoIndex, setActiveTodoIndex] = useState<number | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   const [todos, setTodos] = useState<TodoItem[]>([
-    { id: Date.now().toString(), name: "", description: "" },
+    {
+      id: Date.now().toString(),
+      name: "",
+      description: "",
+      time: new Date().toISOString(),
+    },
   ]);
 
   useEffect(() => {
+    // Request notification permissions on mount
+    registerForPushNotificationsAsync();
+
     if (editTask) {
       setTitle(editTask.title);
       setDate(new Date(editTask.date));
@@ -38,14 +56,30 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
   }, [editTask]);
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
-    setShowPicker(false);
+    setShowDatePicker(false);
     if (selectedDate) setDate(selectedDate);
+  };
+
+  // Logic for individual Todo Time Change
+  const onChangeTodoTime = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (selectedTime && activeTodoIndex !== null) {
+      const updatedTodos = [...todos];
+      updatedTodos[activeTodoIndex].time = selectedTime.toISOString();
+      setTodos(updatedTodos);
+      setActiveTodoIndex(null);
+    }
   };
 
   const addNewTodoField = () => {
     setTodos([
       ...todos,
-      { id: Date.now().toString(), name: "", description: "" },
+      {
+        id: Date.now().toString(),
+        name: "",
+        description: "",
+        time: new Date().toISOString(),
+      },
     ]);
   };
 
@@ -69,6 +103,15 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     }
 
     try {
+      const filteredTodos = todos.filter((t) => t.name.trim() !== "");
+
+      // --- CRUCIAL: Schedule Notifications for each valid Todo ---
+      for (const item of filteredTodos) {
+        if (item.name.trim() !== "") {
+          await scheduleTodoReminders(item.name, new Date(item.time));
+        }
+      }
+
       const existing = await AsyncStorage.getItem("@task_groups");
       let tasks = existing ? JSON.parse(existing) : [];
 
@@ -76,7 +119,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
         id: editTask ? editTask.id : Date.now().toString(),
         title,
         date: date.toISOString(),
-        todos: todos.filter((t) => t.name.trim() !== ""), // Only saves items with a name
+        todos: filteredTodos,
         completed: editTask ? editTask.completed : false,
       };
 
@@ -88,12 +131,11 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
       await AsyncStorage.setItem("@task_groups", JSON.stringify(tasks));
 
-      // Points 4: Success message and redirect to Home
-      Alert.alert("Success", "Task Group saved successfully!", [
+      Alert.alert("Success", "Task Group saved & Reminders set! 🚀", [
         { text: "OK", onPress: () => onGoBack() },
       ]);
     } catch (e) {
-      Alert.alert("Error", "Could not save task");
+      Alert.alert("Error", "Could not save task or set reminders");
     }
   };
 
@@ -103,7 +145,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       style={{ flex: 1 }}
     >
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Adjusted Gap: Internal header for context */}
         <Text style={styles.internalTitle}>
           {editTask ? "Edit Task" : "New Task"}
         </Text>
@@ -118,17 +159,17 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
         <TouchableOpacity
           style={styles.datePickerBtn}
-          onPress={() => setShowPicker(true)}
+          onPress={() => setShowDatePicker(true)}
         >
           <Feather name="calendar" size={18} color="#007AFF" />
           <Text style={styles.dateText}>{date.toDateString()}</Text>
         </TouchableOpacity>
 
-        {showPicker && (
+        {showDatePicker && (
           <DateTimePicker value={date} mode="date" onChange={onChangeDate} />
         )}
 
-        <Text style={styles.subLabel}>NESTED TODOS</Text>
+        <Text style={styles.subLabel}>NESTED TODOS (SET TIME FOR ALERTS)</Text>
 
         {todos.map((todo, index) => (
           <View key={todo.id} style={styles.todoCard}>
@@ -140,14 +181,24 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
                 value={todo.name}
                 onChangeText={(v) => updateTodo(index, "name", v)}
               />
-              {todos.length > 1 && (
-                <TouchableOpacity onPress={() => removeTodoField(index)}>
-                  <Feather name="minus-circle" size={18} color="#FF3B30" />
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveTodoIndex(index);
+                    setShowTimePicker(true);
+                  }}
+                  style={{ marginRight: 15 }}
+                >
+                  <Feather name="clock" size={18} color="#007AFF" />
                 </TouchableOpacity>
-              )}
+                {todos.length > 1 && (
+                  <TouchableOpacity onPress={() => removeTodoField(index)}>
+                    <Feather name="minus-circle" size={18} color="#FF3B30" />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
-            {/* Point 2 & 3: Description Implementation */}
             <TextInput
               style={styles.todoDescInput}
               placeholder="Description (Optional)"
@@ -156,8 +207,36 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
               value={todo.description}
               onChangeText={(v) => updateTodo(index, "description", v)}
             />
+
+            {/* Display selected time for this todo */}
+            <Text
+              style={{
+                color: "#007AFF",
+                fontSize: 12,
+                marginTop: 5,
+                fontWeight: "500",
+              }}
+            >
+              🔔 Reminder set for:{" "}
+              {new Date(todo.time).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
           </View>
         ))}
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={
+              activeTodoIndex !== null
+                ? new Date(todos[activeTodoIndex].time)
+                : new Date()
+            }
+            mode="time"
+            onChange={onChangeTodoTime}
+          />
+        )}
 
         <TouchableOpacity style={styles.addBtn} onPress={addNewTodoField}>
           <Feather name="plus" size={18} color="#007AFF" />
@@ -168,7 +247,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
           <Text style={styles.confirmBtnText}>Confirm Task</Text>
         </TouchableOpacity>
 
-        {/* Extra space so keyboard doesn't cover the button */}
         <View style={{ height: 120 }} />
       </ScrollView>
     </KeyboardAvoidingView>
