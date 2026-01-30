@@ -1,16 +1,66 @@
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  Vibration,
   View,
 } from "react-native";
 
 export default function WorkScreen() {
-  // Logic to get the current day
+  // --- NEW TIMER LOGIC ---
+  const [seconds, setSeconds] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [restSeconds, setRestSeconds] = useState(0);
+  const [isResting, setIsResting] = useState(false);
+
+  const workoutInterval = useRef<NodeJS.Timeout | null>(null);
+  const restInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Total Workout Stopwatch
+  useEffect(() => {
+    if (isActive) {
+      workoutInterval.current = setInterval(() => {
+        setSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (workoutInterval.current) clearInterval(workoutInterval.current);
+    }
+    return () => {
+      if (workoutInterval.current) clearInterval(workoutInterval.current);
+    };
+  }, [isActive]);
+
+  // Rest Timer
+  useEffect(() => {
+    if (isResting && restSeconds > 0) {
+      restInterval.current = setInterval(() => {
+        setRestSeconds((prev) => prev - 1);
+      }, 1000);
+    } else if (restSeconds === 0 && isResting) {
+      Vibration.vibrate([0, 500, 200, 500]);
+      Alert.alert("Rest Over!", "Time for the next set! 💪");
+      setIsResting(false);
+      if (restInterval.current) clearInterval(restInterval.current);
+    }
+    return () => {
+      if (restInterval.current) clearInterval(restInterval.current);
+    };
+  }, [isResting, restSeconds]);
+
+  const formatTime = (totalSecs: number) => {
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+  // --- END OF NEW LOGIC ---
+
   const dayIndex = new Date().getDay();
   const days = [
     "Sunday",
@@ -23,7 +73,6 @@ export default function WorkScreen() {
   ];
   const today = days[dayIndex];
 
-  // Data Source: 5-Day Resistance Band Workout Plan
   const workoutPlan: any = {
     Monday: {
       title: "Full Body Strength",
@@ -166,12 +215,68 @@ export default function WorkScreen() {
 
   return (
     <View style={styles.container}>
+      {/* 1. HEADER SECTION (UNTOUCHED) */}
       <View style={styles.header}>
         <Text style={styles.dayLabel}>{today.toUpperCase()}</Text>
         <Text style={styles.title}>{currentWorkout.title}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* 2. NEW STOPWATCH UI (INJECTED) */}
+        <View style={styles.timerCard}>
+          <Text style={styles.timerSub}>WORKOUT DURATION</Text>
+          <Text style={styles.timerText}>{formatTime(seconds)}</Text>
+          <View style={styles.timerActions}>
+            <TouchableOpacity
+              style={[
+                styles.playBtn,
+                isActive && { backgroundColor: "#FF9500" },
+              ]}
+              onPress={() => setIsActive(!isActive)}
+            >
+              <Feather
+                name={isActive ? "pause" : "play"}
+                size={20}
+                color="white"
+              />
+              <Text style={styles.btnText}>{isActive ? "PAUSE" : "START"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.refreshBtn}
+              onPress={() => {
+                setSeconds(0);
+                setIsActive(false);
+              }}
+            >
+              <Feather name="refresh-cw" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 3. NEW REST TIMER UI (INJECTED) */}
+        <View style={styles.restCard}>
+          <View style={styles.restHeader}>
+            <Text style={styles.restTitle}>REST TIMER</Text>
+            <Text style={styles.restCountdown}>{restSeconds}s</Text>
+          </View>
+          <View style={styles.restOptions}>
+            {[30, 45, 60, 90].map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={styles.timeTag}
+                onPress={() => {
+                  setRestSeconds(t);
+                  setIsResting(true);
+                }}
+              >
+                <Text style={styles.timeTagText}>+{t}s</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* 4. EXERCISES LIST (UNTOUCHED) */}
+        <Text style={styles.sectionLabel}>TODAY'S EXERCISES</Text>
         {currentWorkout.exercises.length > 0 ? (
           currentWorkout.exercises.map((ex: any, i: number) => (
             <TouchableOpacity
@@ -195,6 +300,7 @@ export default function WorkScreen() {
           </View>
         )}
 
+        {/* 5. PROGRESSION BOX (UNTOUCHED) */}
         <View style={styles.progressionBox}>
           <Text style={styles.progTitle}>PROGRESSION RULE</Text>
           <Text style={styles.progText}>
@@ -209,7 +315,7 @@ export default function WorkScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 20 },
-  header: { marginBottom: 25 },
+  header: { marginTop: 40, marginBottom: 20 },
   dayLabel: {
     color: "#007AFF",
     fontSize: 12,
@@ -217,6 +323,75 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   title: { color: "white", fontSize: 28, fontWeight: "bold", marginTop: 4 },
+
+  // NEW STYLES
+  timerCard: {
+    backgroundColor: "#1C1C1E",
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 15,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  timerSub: {
+    color: "#8E8E93",
+    fontSize: 10,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+  timerText: {
+    color: "white",
+    fontSize: 48,
+    fontWeight: "bold",
+    marginVertical: 10,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  timerActions: { flexDirection: "row", gap: 15, alignItems: "center" },
+  playBtn: {
+    backgroundColor: "#34C759",
+    flexDirection: "row",
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+    borderRadius: 25,
+    gap: 8,
+    alignItems: "center",
+  },
+  refreshBtn: { backgroundColor: "#333", padding: 12, borderRadius: 50 },
+  btnText: { color: "white", fontWeight: "bold", fontSize: 14 },
+
+  restCard: {
+    backgroundColor: "#1C1C1E",
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 25,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  restHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  restTitle: { color: "#8E8E93", fontSize: 12, fontWeight: "bold" },
+  restCountdown: { color: "#007AFF", fontSize: 24, fontWeight: "bold" },
+  restOptions: { flexDirection: "row", justifyContent: "space-between" },
+  timeTag: {
+    backgroundColor: "#333",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+  },
+  timeTagText: { color: "white", fontWeight: "bold", fontSize: 12 },
+  sectionLabel: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+  },
+
+  // EXISTING STYLES
   exCard: {
     flexDirection: "row",
     backgroundColor: "#1C1C1E",
@@ -238,7 +413,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  restContainer: { alignItems: "center", marginTop: 60 },
+  restContainer: { alignItems: "center", marginTop: 40, marginBottom: 40 },
   restText: {
     color: "#8E8E93",
     fontSize: 16,
@@ -249,7 +424,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C1C1E",
     padding: 15,
     borderRadius: 12,
-    marginTop: 20,
+    marginTop: 10,
+    marginBottom: 30,
     borderLeftWidth: 4,
     borderLeftColor: "#34C759",
   },
