@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import {
   registerForPushNotificationsAsync,
-  scheduleTodoReminders,
+  syncAllNotifications,
 } from "../../utils/notifications";
 
 interface TodoItem {
@@ -106,7 +106,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     }
   };
 
-  // --- CORRECTED SAVE LOGIC ---
+  // --- SAVE LOGIC UPDATED FOR NOTIFICATIONS ---
   const performSave = async (filteredTodos: TodoItem[], finalDate: Date) => {
     try {
       const existing = await AsyncStorage.getItem("@task_groups");
@@ -115,7 +115,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       const taskData = {
         id: editTask ? editTask.id : Date.now().toString(),
         title,
-        date: finalDate.toISOString(), // SAVING THE CORRECT DATE (TODAY OR TOMORROW)
+        date: finalDate.toISOString(),
         todos: filteredTodos,
         completed: editTask ? editTask.completed : false,
       };
@@ -128,10 +128,8 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
       await AsyncStorage.setItem("@task_groups", JSON.stringify(tasks));
 
-      // Schedule notifications using the specific final date
-      for (const item of filteredTodos) {
-        await scheduleTodoReminders(item.name, new Date(item.time));
-      }
+      // SYNC: Update all notification schedules immediately
+      await syncAllNotifications();
 
       onGoBack();
     } catch (e) {
@@ -149,7 +147,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     const filteredTodos = todos.filter((t) => t.name.trim() !== "");
     let containsPastTime = false;
 
-    // Only check past time if the selected date is TODAY
     const isToday = date.toDateString() === now.toDateString();
 
     if (isToday) {
@@ -175,7 +172,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
           {
             text: "Set for Tomorrow",
             onPress: () => {
-              // CREATE TOMORROW'S DATE
               const tomorrow = new Date(date);
               tomorrow.setDate(tomorrow.getDate() + 1);
               performSave(filteredTodos, tomorrow);

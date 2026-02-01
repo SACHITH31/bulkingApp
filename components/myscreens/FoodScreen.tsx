@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { syncAllNotifications } from "../../utils/notifications";
 
 export default function FoodScreen() {
   const [loading, setLoading] = useState(true);
@@ -290,6 +291,9 @@ export default function FoodScreen() {
         date: new Date().toDateString(),
       };
       await AsyncStorage.setItem("@daily_summary", JSON.stringify(summary));
+
+      // SYNC: Update the 10:30 PM notification with new totals
+      await syncAllNotifications();
     } catch (e) {
       console.log("Error saving food data");
     }
@@ -322,7 +326,6 @@ export default function FoodScreen() {
     setDietPlan(updatedPlan);
     saveData(updatedPlan);
 
-    // Reset fields to allow adding another item immediately
     setNewName("");
     setNewKcal("");
     setNewPro("");
