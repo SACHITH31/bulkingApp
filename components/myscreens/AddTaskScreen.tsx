@@ -312,16 +312,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
           <Text style={styles.addBtnText}>Add Item</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.confirmBtn,
-            { backgroundColor: "#34C759", marginBottom: 10 },
-          ]}
-          onPress={testNotificationNow}
-        >
-          <Text style={styles.confirmBtnText}>🔔 Test Vibration & Sound</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.confirmBtn} onPress={saveTaskGroup}>
           <Text style={styles.confirmBtnText}>Confirm Task</Text>
         </TouchableOpacity>
