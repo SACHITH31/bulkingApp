@@ -16,10 +16,7 @@ import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
 // Import notification utilities
-import {
-  registerForPushNotificationsAsync,
-  scheduleDailyHealthReminders,
-} from "../utils/notifications";
+import { registerForPushNotificationsAsync } from "../utils/notifications";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +29,7 @@ export default function App() {
     const setupApp = async () => {
       // Register for permissions and start the daily recurring alerts cycle
       await registerForPushNotificationsAsync();
-      await scheduleDailyHealthReminders();
+      // await scheduleDailyHealthReminders();
     };
 
     setupApp();

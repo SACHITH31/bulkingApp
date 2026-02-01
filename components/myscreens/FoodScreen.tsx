@@ -20,7 +20,6 @@ export default function FoodScreen() {
     null,
   );
 
-  // Form states for custom food
   const [newName, setNewName] = useState("");
   const [newKcal, setNewKcal] = useState("");
   const [newPro, setNewPro] = useState("");
@@ -292,7 +291,7 @@ export default function FoodScreen() {
       };
       await AsyncStorage.setItem("@daily_summary", JSON.stringify(summary));
 
-      // SYNC: Update the 10:30 PM notification with new totals
+      // This ensures your 10:30 PM notification is always accurate!
       await syncAllNotifications();
     } catch (e) {
       console.log("Error saving food data");
@@ -310,7 +309,7 @@ export default function FoodScreen() {
   };
 
   const addCustomFood = () => {
-    if (!newName || activePeriodIndex === null) return;
+    if (!newName.trim() || activePeriodIndex === null) return;
 
     const updatedPlan = [...dietPlan];
     const newItem = {
@@ -326,9 +325,11 @@ export default function FoodScreen() {
     setDietPlan(updatedPlan);
     saveData(updatedPlan);
 
+    // Minor stability fixes: Reset and close modal
     setNewName("");
     setNewKcal("");
     setNewPro("");
+    setModalVisible(false);
   };
 
   const allItems = dietPlan.flatMap((p) => p.items);
@@ -492,9 +493,6 @@ export default function FoodScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalNote}>
-              Tip: You can add multiple items before closing.
-            </Text>
           </View>
         </View>
       </Modal>
@@ -606,12 +604,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: "45%",
     alignItems: "center",
-  },
-  modalNote: {
-    color: "#666",
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 15,
-    fontStyle: "italic",
   },
 });

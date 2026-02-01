@@ -3,7 +3,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-// 1. Configure Notification Behavior (Head-up alerts, Sound, Badge)
+// 1. Setup global notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -12,165 +12,146 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// 2. Default Workout Schedule (Used for the 5:30 PM reminder)
-const DEFAULT_WORKOUT_PLAN: any = {
-  Monday: { title: "Full Body Strength", exercises: [1] },
-  Tuesday: { title: "Upper Body", exercises: [1] },
-  Wednesday: { title: "Lower Body", exercises: [1] },
-  Thursday: { title: "REST DAY", exercises: [] },
-  Friday: { title: "Full Body", exercises: [1] },
-  Saturday: { title: "Light Cardio", exercises: [1] },
-  Sunday: { title: "REST DAY", exercises: [] },
-};
-
-// 3. Permission Request Handler
+// 2. Register Permissions & Channels
 export async function registerForPushNotificationsAsync() {
   if (!Device.isDevice) return false;
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
-      name: "default",
+      name: "MassFlow Reminders",
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 500, 200, 500],
+      vibrationPattern: [0, 250, 250, 250],
       lightColor: "#FF231F7C",
-      showBadge: true,
     });
   }
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
-
   if (existingStatus !== "granted") {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-
   return finalStatus === "granted";
 }
 
-// 4. The MASTER Sync Function
+// 3. The Master Sync Function
 export async function syncAllNotifications() {
-  // A. Clear all previous schedules to prevent duplicates
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  try {
+    // STEP 1: Wipe all previous/stale notifications
+    await Notifications.cancelAllScheduledNotificationsAsync();
 
-  // B. Schedule Fixed Meal Reminders
-  const meals = [
-    {
-      title: "🍳 Breakfast Time",
-      body: "Fuel up! Time for your morning meal.",
-      h: 8,
-      m: 30,
-    },
-    {
-      title: "🥗 Lunch Time",
-      body: "Don't skip your midday nutrition!",
-      h: 13,
-      m: 30,
-    },
-    {
-      title: "🍽️ Dinner Time",
-      body: "Evening meal time. Keep that bulk going!",
-      h: 20,
-      m: 0,
-    },
-  ];
+    const now = new Date();
+    // Safety buffer: 5 seconds in the future
+    const bufferTime = now.getTime() + 5000;
 
-  for (const m of meals) {
-    await Notifications.scheduleNotificationAsync({
-      content: { title: m.title, body: m.body, sound: true },
-      trigger: { hour: m.h, minute: m.m, repeats: true },
-    });
-  }
+    // --- PART A: MEAL REMINDERS ---
+    // --- PART A: MEAL REMINDERS ---
+    const mealTimes = [
+      {
+        title: "🍳 Breakfast Time",
+        body: "Fuel up for the day!",
+        hour: 8,
+        minute: 30,
+      },
+      {
+        title: "🥗 Lunch Time",
+        body: "Don't skip your midday nutrition!",
+        hour: 13,
+        minute: 30,
+      },
+      {
+        title: "🍽️ Dinner Time",
+        body: "Time for your evening meal.",
+        hour: 20,
+        minute: 0,
+      },
+    ];
 
-  // C. Schedule Dynamic Workout Reminder (5:30 PM)
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const todayName = days[new Date().getDay()];
-  const workout = DEFAULT_WORKOUT_PLAN[todayName];
+    for (const meal of mealTimes) {
+      const now = new Date();
+      const mealToday = new Date();
+      mealToday.setHours(meal.hour, meal.minute, 0, 0);
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "💪 Workout Time!",
-      body:
-        workout?.exercises?.length > 0
-          ? `Time for ${workout.title}! Let's hit the gym.`
-          : `Today is Rest Day. Do some light stretching!`,
-      sound: true,
-    },
-    trigger: { hour: 17, minute: 30, repeats: true },
-  });
+      // If the meal time has already passed today (e.g., it's 9:38 AM and meal was 8:30 AM)
+      // we schedule it specifically for TOMORROW to avoid the immediate pop-up.
+      let trigger;
+      if (now > mealToday) {
+        // Already passed today, schedule for tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(meal.hour, meal.minute, 0, 0);
 
-  // D. Schedule Daily Nutrition Summary (10:30 PM)
-  // We read the latest data from AsyncStorage
-  const savedFood = await AsyncStorage.getItem("@food_logs"); // Assuming you save logs here or we calculate from plan
-  // Fallback: Calculate from the current day's summary key you used in FoodScreen
-  const summaryStr = await AsyncStorage.getItem("@daily_summary");
-  const summary = summaryStr ? JSON.parse(summaryStr) : { kcal: 0, protein: 0 };
+        trigger = {
+          date: tomorrow,
+          repeats: true, // Expo will continue daily after this date
+          channelId: "default",
+        };
+      } else {
+        // Still in the future today
+        trigger = {
+          hour: meal.hour,
+          minute: meal.minute,
+          repeats: true,
+          channelId: "default",
+        };
+      }
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "📊 Daily Summary",
-      body: `Total Today: ${summary.kcal} kcal and ${summary.protein}g Protein. Great work!`,
-      sound: true,
-    },
-    trigger: { hour: 22, minute: 30, repeats: true },
-  });
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: meal.title,
+          body: meal.body,
+          sound: true,
+        },
+        trigger: trigger as any,
+      }).catch((e) => console.log("Meal error skipped"));
+    }
 
-  // E. Schedule Todo Reminders (1hr, 30m, 5m, NOW)
-  const savedTaskGroups = await AsyncStorage.getItem("@task_groups");
-  const taskGroups = savedTaskGroups ? JSON.parse(savedTaskGroups) : [];
-  const now = new Date();
+    // --- PART B: TODO REMINDERS ---
+    const data = await AsyncStorage.getItem("@task_groups");
+    if (!data) return;
 
-  // Iterate through all groups and their nested todos
-  for (const group of taskGroups) {
-    if (!group.todos) continue;
+    const groups = JSON.parse(data);
 
-    for (const todo of group.todos) {
-      if (!todo.time) continue;
+    for (const group of groups) {
+      if (group.completed) continue;
 
-      const taskTime = new Date(todo.time);
+      for (const todo of group.todos) {
+        // We assume todo.completed might not exist yet, so we check if it's there
+        if (todo.completed) continue;
 
-      // If the task is in the past, skip it
-      if (taskTime <= now) continue;
+        const taskDate = new Date(todo.time);
+        taskDate.setSeconds(0, 0);
 
-      const intervals = [
-        { mins: 60, label: "1 hour" },
-        { mins: 30, label: "30 minutes" },
-        { mins: 5, label: "5 minutes" },
-        { mins: 0, label: "NOW" },
-      ];
+        const scheduleStage = async (
+          minutesBefore: number,
+          label: string,
+          msg: string,
+        ) => {
+          const triggerTime = new Date(
+            taskDate.getTime() - minutesBefore * 60000,
+          );
 
-      for (const interval of intervals) {
-        const triggerTime = new Date(
-          taskTime.getTime() - interval.mins * 60000,
-        );
+          // ONLY schedule if triggerTime is actually in the future (past the buffer)
+          if (triggerTime.getTime() > bufferTime) {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `${label}: ${todo.name}`,
+                body: msg,
+                data: { taskId: group.id },
+              },
+              trigger: { date: triggerTime },
+            }).catch((err) => console.log("Stage schedule error skipped"));
+          }
+        };
 
-        // Only schedule if the trigger time is still in the future
-        if (triggerTime > now) {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title:
-                interval.mins === 0
-                  ? `🎯 Start: ${todo.name}`
-                  : `⏳ ${interval.label} Left: ${todo.name}`,
-              body:
-                interval.mins === 0
-                  ? "Time to crush this task!"
-                  : `"${todo.name}" starts soon.`,
-              sound: true,
-              data: { todoId: todo.id },
-            },
-            trigger: { date: triggerTime },
-          });
-        }
+        // Stages: 1hr, 30m, 5m, and Start
+        await scheduleStage(60, "⏳ 1 hour Left", "Starts soon!");
+        await scheduleStage(30, "⏳ 30 mins Left", "Get ready!");
+        await scheduleStage(5, "⏳ 5 mins Left", "Almost time!");
+        await scheduleStage(0, "🎯 Start", "Time to crush this task!");
       }
     }
+  } catch (globalError) {
+    console.error("Critical Sync Error:", globalError);
   }
 }

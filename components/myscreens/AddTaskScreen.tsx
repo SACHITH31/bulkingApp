@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import * as Notifications from "expo-notifications";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -39,7 +38,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       id: Date.now().toString(),
       name: "",
       description: "",
-      time: new Date().toString(),
+      time: new Date().toISOString(),
     },
   ]);
 
@@ -76,20 +75,28 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     setShowTimePicker(false);
     if (selectedTime && activeTodoIndex !== null) {
       const updatedTodos = [...todos];
-      updatedTodos[activeTodoIndex].time = selectedTime.toString();
+      // IMPORTANT: Ensure the time is merged with the currently selected date
+      const combined = new Date(date);
+      combined.setHours(selectedTime.getHours());
+      combined.setMinutes(selectedTime.getMinutes());
+      combined.setSeconds(0, 0);
+
+      updatedTodos[activeTodoIndex].time = combined.toISOString();
       setTodos(updatedTodos);
       setActiveTodoIndex(null);
     }
   };
 
   const addNewTodoField = () => {
+    const defaultTime = new Date(date);
+    defaultTime.setSeconds(0, 0);
     setTodos([
       ...todos,
       {
         id: Date.now().toString(),
         name: "",
         description: "",
-        time: new Date().toString(),
+        time: defaultTime.toISOString(),
       },
     ]);
   };
@@ -107,17 +114,26 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     }
   };
 
-  // --- SAVE LOGIC UPDATED FOR NOTIFICATIONS ---
   const performSave = async (filteredTodos: TodoItem[], finalDate: Date) => {
     try {
       const existing = await AsyncStorage.getItem("@task_groups");
       let tasks = existing ? JSON.parse(existing) : [];
 
+      // Normalize all todo times to match the finalDate chosen
+      const normalizedTodos = filteredTodos.map((todo) => {
+        const t = new Date(todo.time);
+        const corrected = new Date(finalDate);
+        corrected.setHours(t.getHours());
+        corrected.setMinutes(t.getMinutes());
+        corrected.setSeconds(0, 0);
+        return { ...todo, time: corrected.toISOString() };
+      });
+
       const taskData = {
         id: editTask ? editTask.id : Date.now().toString(),
         title,
         date: finalDate.toISOString(),
-        todos: filteredTodos,
+        todos: normalizedTodos,
         completed: editTask ? editTask.completed : false,
       };
 
@@ -129,12 +145,11 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
       await AsyncStorage.setItem("@task_groups", JSON.stringify(tasks));
 
-      // SYNC: Update all notification schedules immediately
+      // Refresh the notification engine
       await syncAllNotifications();
-
       onGoBack();
-    } catch (e) {
-      Alert.alert("Error", "Could not save task.");
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Could not save task.");
     }
   };
 
@@ -153,11 +168,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     if (isToday) {
       for (const item of filteredTodos) {
         const itemTime = new Date(item.time);
-        if (
-          itemTime.getHours() < now.getHours() ||
-          (itemTime.getHours() === now.getHours() &&
-            itemTime.getMinutes() <= now.getMinutes())
-        ) {
+        if (itemTime <= now) {
           containsPastTime = true;
           break;
         }
@@ -167,7 +178,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     if (containsPastTime) {
       Alert.alert(
         "Time Already Passed",
-        "The time selected has already passed for today. Do you want to move this task to tomorrow?",
+        "Some selected times have already passed. Move this task to tomorrow?",
         [
           { text: "Change Time", style: "cancel" },
           {
@@ -183,25 +194,6 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     } else {
       performSave(filteredTodos, date);
     }
-  };
-
-  const testNotificationNow = async () => {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "🚀 Test Success!",
-        body: "Your vibration and sound are working perfectly.",
-        sound: true,
-      },
-      // Adding channelId fixes the "Invalid Trigger" error
-      trigger: {
-        seconds: 3,
-        channelId: "default",
-      },
-    });
-    Alert.alert(
-      "Success",
-      "Lock your screen! Notification coming in 3 seconds.",
-    );
   };
 
   return (

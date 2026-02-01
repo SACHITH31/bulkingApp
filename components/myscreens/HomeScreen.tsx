@@ -14,6 +14,8 @@ import {
   UIManager,
   View,
 } from "react-native";
+// IMPORT the sync utility
+import { syncAllNotifications } from "../../utils/notifications";
 
 if (
   Platform.OS === "android" &&
@@ -70,6 +72,9 @@ export default function HomeScreen({ onEditTask }: any) {
           const updated = allTaskGroups.filter((g) => g.id !== id);
           setAllTaskGroups(updated);
           await AsyncStorage.setItem("@task_groups", JSON.stringify(updated));
+
+          // LOGIC UPDATE: Cancel notifications for the deleted task
+          await syncAllNotifications();
         },
       },
     ]);
@@ -81,6 +86,9 @@ export default function HomeScreen({ onEditTask }: any) {
     );
     setAllTaskGroups(updated);
     await AsyncStorage.setItem("@task_groups", JSON.stringify(updated));
+
+    // LOGIC UPDATE: Stop notifications if the task is now completed
+    await syncAllNotifications();
   };
 
   const filteredTasks = allTaskGroups.filter((group) => {
@@ -293,7 +301,6 @@ const styles = StyleSheet.create({
   todoItem: { marginBottom: 10 },
   todoName: { color: "#EEE", fontSize: 14, fontWeight: "600" },
   todoDesc: { color: "#888", fontSize: 12, marginLeft: 12, marginTop: 2 },
-  // New Styles for Empty State
   emptyContainer: {
     marginTop: 80,
     alignItems: "center",
