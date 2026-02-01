@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Notifications from "expo-notifications";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -184,6 +185,25 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     }
   };
 
+  const testNotificationNow = async () => {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🚀 Test Success!",
+        body: "Your vibration and sound are working perfectly.",
+        sound: true,
+      },
+      // Adding channelId fixes the "Invalid Trigger" error
+      trigger: {
+        seconds: 3,
+        channelId: "default",
+      },
+    });
+    Alert.alert(
+      "Success",
+      "Lock your screen! Notification coming in 3 seconds.",
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -290,6 +310,16 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
         <TouchableOpacity style={styles.addBtn} onPress={addNewTodoField}>
           <Feather name="plus" size={18} color="#007AFF" />
           <Text style={styles.addBtnText}>Add Item</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.confirmBtn,
+            { backgroundColor: "#34C759", marginBottom: 10 },
+          ]}
+          onPress={testNotificationNow}
+        >
+          <Text style={styles.confirmBtnText}>🔔 Test Vibration & Sound</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.confirmBtn} onPress={saveTaskGroup}>
