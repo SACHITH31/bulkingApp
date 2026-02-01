@@ -45,8 +45,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#007AFF",
-          "defaultChannel": "default"
+          "color": "#007AFF"
         }
       ],
       "@react-native-community/datetimepicker"
