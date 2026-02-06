@@ -199,7 +199,7 @@ export default function FoodScreen() {
     },
     {
       period: "Dinner",
-      time: "7:30 PM",
+      time: "8:30 PM",
       items: [
         {
           id: 18,
@@ -229,7 +229,7 @@ export default function FoodScreen() {
     },
     {
       period: "Before Bed",
-      time: "9:30 PM",
+      time: "10:00 PM",
       items: [
         {
           id: 21,
