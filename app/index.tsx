@@ -16,7 +16,6 @@ import WeightScreen from "../components/myscreens/WeightScreen";
 import WorkScreen from "../components/myscreens/WorkScreen";
 
 // Import notification utilities
-import { registerForPushNotificationsAsync } from "../utils/notifications";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -24,16 +23,8 @@ export default function App() {
   const [userWeight, setUserWeight] = useState("54.00");
   const [editingTask, setEditingTask] = useState(null);
 
-  // --- UPDATED EFFECT: SETUP NOTIFICATIONS & LOADING ---
+  // --- UPDATED EFFECT: LOADING ---
   useEffect(() => {
-    const setupApp = async () => {
-      // Register for permissions and start the daily recurring alerts cycle
-      await registerForPushNotificationsAsync();
-      // await scheduleDailyHealthReminders();
-    };
-
-    setupApp();
-
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 5000);
