@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  AppState,
   Linking,
   Platform,
   ScrollView,
@@ -13,6 +15,8 @@ import {
 } from "react-native";
 import { getDayName, getWorkoutForDate } from "../../utils/workoutPlan";
 
+const WORKOUT_TIMER_STORAGE_KEY = "@work_timer_state";
+
 export default function WorkScreen() {
   // --- NEW TIMER LOGIC ---
   const [seconds, setSeconds] = useState(0);
@@ -22,12 +26,59 @@ export default function WorkScreen() {
 
   const workoutInterval = useRef<NodeJS.Timeout | null>(null);
   const restInterval = useRef<NodeJS.Timeout | null>(null);
+  const workoutStartMsRef = useRef<number | null>(null);
+
+  const persistWorkoutTimerState = async (
+    active: boolean,
+    elapsedSeconds: number,
+    startMs: number | null,
+  ) => {
+    try {
+      await AsyncStorage.setItem(
+        WORKOUT_TIMER_STORAGE_KEY,
+        JSON.stringify({
+          isActive: active,
+          elapsedSeconds,
+          startMs,
+        }),
+      );
+    } catch {
+      console.log("Workout timer state save failed");
+    }
+  };
+
+  const getElapsedFromStart = () => {
+    if (!workoutStartMsRef.current) return seconds;
+    return Math.max(0, Math.floor((Date.now() - workoutStartMsRef.current) / 1000));
+  };
+
+  useEffect(() => {
+    const restoreTimerState = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(WORKOUT_TIMER_STORAGE_KEY);
+        if (!raw) return;
+
+        const saved = JSON.parse(raw);
+        if (saved?.isActive && typeof saved?.startMs === "number") {
+          workoutStartMsRef.current = saved.startMs;
+          setSeconds(Math.max(0, Math.floor((Date.now() - saved.startMs) / 1000)));
+          setIsActive(true);
+        } else if (typeof saved?.elapsedSeconds === "number") {
+          setSeconds(saved.elapsedSeconds);
+        }
+      } catch {
+        console.log("Workout timer state load failed");
+      }
+    };
+
+    restoreTimerState();
+  }, []);
 
   // Total Workout Stopwatch
   useEffect(() => {
     if (isActive) {
       workoutInterval.current = setInterval(() => {
-        setSeconds((prev) => prev + 1);
+        setSeconds(getElapsedFromStart());
       }, 1000);
     } else {
       if (workoutInterval.current) clearInterval(workoutInterval.current);
@@ -36,6 +87,18 @@ export default function WorkScreen() {
       if (workoutInterval.current) clearInterval(workoutInterval.current);
     };
   }, [isActive]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && workoutStartMsRef.current) {
+        const elapsed = getElapsedFromStart();
+        setSeconds(elapsed);
+        persistWorkoutTimerState(true, elapsed, workoutStartMsRef.current);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // Rest Timer
   useEffect(() => {
@@ -90,7 +153,21 @@ export default function WorkScreen() {
                 styles.playBtn,
                 isActive && { backgroundColor: "#FF9500" },
               ]}
-              onPress={() => setIsActive(!isActive)}
+              onPress={() => {
+                if (isActive) {
+                  const elapsed = getElapsedFromStart();
+                  workoutStartMsRef.current = null;
+                  setSeconds(elapsed);
+                  setIsActive(false);
+                  persistWorkoutTimerState(false, elapsed, null);
+                  return;
+                }
+
+                const startMs = Date.now() - seconds * 1000;
+                workoutStartMsRef.current = startMs;
+                setIsActive(true);
+                persistWorkoutTimerState(true, seconds, startMs);
+              }}
             >
               <Feather
                 name={isActive ? "pause" : "play"}
@@ -104,6 +181,8 @@ export default function WorkScreen() {
               onPress={() => {
                 setSeconds(0);
                 setIsActive(false);
+                workoutStartMsRef.current = null;
+                persistWorkoutTimerState(false, 0, null);
               }}
             >
               <Feather name="refresh-cw" size={20} color="white" />

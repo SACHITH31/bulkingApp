@@ -25,6 +25,9 @@ interface TodoItem {
   time: string;
 }
 
+const createTodoId = () =>
+  `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
 export default function AddTaskScreen({ onGoBack, editTask }: any) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date());
@@ -35,7 +38,7 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
 
   const [todos, setTodos] = useState<TodoItem[]>([
     {
-      id: Date.now().toString(),
+      id: createTodoId(),
       name: "",
       description: "",
       time: new Date().toISOString(),
@@ -92,8 +95,8 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
     defaultTime.setSeconds(0, 0);
     setTodos([
       ...todos,
-      {
-        id: Date.now().toString(),
+        {
+        id: createTodoId(),
         name: "",
         description: "",
         time: defaultTime.toISOString(),
@@ -120,13 +123,17 @@ export default function AddTaskScreen({ onGoBack, editTask }: any) {
       let tasks = existing ? JSON.parse(existing) : [];
 
       // Normalize all todo times to match the finalDate chosen
+      const seenIds = new Set<string>();
       const normalizedTodos = filteredTodos.map((todo) => {
         const t = new Date(todo.time);
         const corrected = new Date(finalDate);
         corrected.setHours(t.getHours());
         corrected.setMinutes(t.getMinutes());
         corrected.setSeconds(0, 0);
-        return { ...todo, time: corrected.toISOString() };
+        const baseId = todo.id?.trim() || createTodoId();
+        const finalId = seenIds.has(baseId) ? createTodoId() : baseId;
+        seenIds.add(finalId);
+        return { ...todo, id: finalId, time: corrected.toISOString() };
       });
 
       const taskData = {
