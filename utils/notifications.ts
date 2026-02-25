@@ -19,6 +19,8 @@ let syncPromise: Promise<void> | null = null;
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -112,13 +114,16 @@ async function scheduleMealReminders() {
         ? `Eat: ${items.slice(0, 4).join(", ")}`
         : "Time to eat and refuel.";
 
-    const trigger = { type: "daily", hour: meal.hour, minute: meal.minute };
+    const trigger: Notifications.NotificationTriggerInput = {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: meal.hour,
+      minute: meal.minute,
+    };
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: meal.title,
         body,
         sound: true,
-        channelId: ANDROID_CHANNEL_ID,
       },
       trigger,
     });
@@ -150,13 +155,15 @@ async function scheduleDailySummary() {
     // ignore parse errors
   }
 
-  const summaryTrigger = { type: "date", date: target };
+  const summaryTrigger: Notifications.NotificationTriggerInput = {
+    type: Notifications.SchedulableTriggerInputTypes.DATE,
+    date: target,
+  };
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "📊 Daily Nutrition Summary",
       body: `Today: ${kcal} kcal, ${protein}g protein.`,
       sound: true,
-      channelId: ANDROID_CHANNEL_ID,
     },
     trigger: summaryTrigger,
   });
@@ -179,13 +186,15 @@ async function scheduleWorkoutReminder() {
     workout?.message ||
     (title.toUpperCase().includes("REST") ? "Recovery day." : "Get moving!");
 
-  const workoutTrigger = { type: "date", date: target };
+  const workoutTrigger: Notifications.NotificationTriggerInput = {
+    type: Notifications.SchedulableTriggerInputTypes.DATE,
+    date: target,
+  };
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: `🏋️ ${title}`,
       body,
       sound: true,
-      channelId: ANDROID_CHANNEL_ID,
     },
     trigger: workoutTrigger,
   });
@@ -219,14 +228,16 @@ async function scheduleTodoNotifications(todo: any, groupId: string, key: string
   for (const stage of stages) {
     const triggerTime = new Date(taskDate.getTime() - stage.minutes * 60000);
     if (triggerTime.getTime() > bufferTime) {
-      const todoTrigger = { type: "date", date: triggerTime };
+      const todoTrigger: Notifications.NotificationTriggerInput = {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerTime,
+      };
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: `${stage.label}: ${todo.name}`,
           body: stage.msg,
           data: { taskId: groupId, todoId: todo.id },
           sound: true,
-          channelId: ANDROID_CHANNEL_ID,
         },
         trigger: todoTrigger,
       });

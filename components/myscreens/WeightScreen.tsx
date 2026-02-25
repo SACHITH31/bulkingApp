@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -12,16 +12,26 @@ import {
   View,
 } from "react-native";
 
-export default function WeightScreen({ onWeightUpdate }) {
+type WeightLog = {
+  id: string;
+  date: string;
+  amount: string;
+};
+
+type WeightScreenProps = {
+  onWeightUpdate: (newW: string) => void;
+};
+
+export default function WeightScreen({ onWeightUpdate }: WeightScreenProps) {
   const [currentInput, setCurrentInput] = useState("");
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState<WeightLog[]>([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   const BASE_WEIGHT = 54; //
   const targetWeight = 63; //
 
-  const calculateTotalWeight = (logs) => {
+  const calculateTotalWeight = (logs: WeightLog[]) => {
     // Math safety check: only add valid numbers
     const gained = logs.reduce((sum, item) => {
       const val = parseFloat(item.amount);
@@ -30,29 +40,29 @@ export default function WeightScreen({ onWeightUpdate }) {
     return (BASE_WEIGHT + gained).toFixed(2);
   };
 
-  useEffect(() => {
-    loadWeights();
-  }, []);
-
-  const loadWeights = async () => {
+  const loadWeights = useCallback(async () => {
     try {
       const saved = await AsyncStorage.getItem("@weight_history");
       if (saved !== null) {
-        const parsed = JSON.parse(saved);
+        const parsed = JSON.parse(saved) as WeightLog[];
         setHistory(parsed);
         onWeightUpdate(calculateTotalWeight(parsed));
       } else {
         onWeightUpdate(BASE_WEIGHT.toString());
       }
-    } catch (e) {
+    } catch {
       onWeightUpdate(BASE_WEIGHT.toString());
     }
-  };
+  }, [onWeightUpdate]);
 
-  const saveWeights = async (data) => {
+  useEffect(() => {
+    loadWeights();
+  }, [loadWeights]);
+
+  const saveWeights = async (data: WeightLog[]) => {
     try {
       await AsyncStorage.setItem("@weight_history", JSON.stringify(data));
-    } catch (e) {
+    } catch {
       console.log("Save error");
     }
   };
@@ -157,9 +167,11 @@ export default function WeightScreen({ onWeightUpdate }) {
             style={styles.historyRow}
             onPress={() => {
               if (isDeleteMode) {
-                selectedItems.includes(item.id)
-                  ? setSelectedItems(selectedItems.filter((i) => i !== item.id))
-                  : setSelectedItems([...selectedItems, item.id]);
+                if (selectedItems.includes(item.id)) {
+                  setSelectedItems(selectedItems.filter((i) => i !== item.id));
+                } else {
+                  setSelectedItems([...selectedItems, item.id]);
+                }
               }
             }}
           >

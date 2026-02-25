@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   AppState,
@@ -24,11 +24,16 @@ export default function WorkScreen() {
   const [restSeconds, setRestSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
 
-  const workoutInterval = useRef<NodeJS.Timeout | null>(null);
-  const restInterval = useRef<NodeJS.Timeout | null>(null);
+  const workoutInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const restInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const workoutStartMsRef = useRef<number | null>(null);
+  const secondsRef = useRef(0);
 
-  const persistWorkoutTimerState = async (
+  useEffect(() => {
+    secondsRef.current = seconds;
+  }, [seconds]);
+
+  const persistWorkoutTimerState = useCallback(async (
     active: boolean,
     elapsedSeconds: number,
     startMs: number | null,
@@ -45,12 +50,12 @@ export default function WorkScreen() {
     } catch {
       console.log("Workout timer state save failed");
     }
-  };
+  }, []);
 
-  const getElapsedFromStart = () => {
-    if (!workoutStartMsRef.current) return seconds;
+  const getElapsedFromStart = useCallback(() => {
+    if (!workoutStartMsRef.current) return secondsRef.current;
     return Math.max(0, Math.floor((Date.now() - workoutStartMsRef.current) / 1000));
-  };
+  }, []);
 
   useEffect(() => {
     const restoreTimerState = async () => {
@@ -86,7 +91,7 @@ export default function WorkScreen() {
     return () => {
       if (workoutInterval.current) clearInterval(workoutInterval.current);
     };
-  }, [isActive]);
+  }, [getElapsedFromStart, isActive]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -98,7 +103,7 @@ export default function WorkScreen() {
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [getElapsedFromStart, persistWorkoutTimerState]);
 
   // Rest Timer
   useEffect(() => {
@@ -213,7 +218,7 @@ export default function WorkScreen() {
         </View>
 
         {/* 4. EXERCISES LIST (UNTOUCHED) */}
-        <Text style={styles.sectionLabel}>TODAY'S EXERCISES</Text>
+        <Text style={styles.sectionLabel}>TODAYS EXERCISES</Text>
         {currentWorkout.exercises.length > 0 ? (
           currentWorkout.exercises.map((ex: any, i: number) => (
             <TouchableOpacity
