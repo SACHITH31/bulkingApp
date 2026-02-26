@@ -19,6 +19,8 @@ let syncPromise: Promise<void> | null = null;
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -61,6 +63,12 @@ async function cancelStoredIds(key: string) {
   const ids = JSON.parse(raw) as string[];
   await cancelNotificationIds(ids);
   await AsyncStorage.removeItem(key);
+}
+
+function getTodoNotificationKey(groupId: string, todoId: string, index: number) {
+  const safeGroupId = groupId || "group";
+  const safeTodoId = todoId || `idx_${index}`;
+  return `${STORAGE_KEYS.todoIdsPrefix}${safeGroupId}__${safeTodoId}`;
 }
 
 async function scheduleMealReminders() {
@@ -106,13 +114,16 @@ async function scheduleMealReminders() {
         ? `Eat: ${items.slice(0, 4).join(", ")}`
         : "Time to eat and refuel.";
 
-    const trigger = { type: "daily", hour: meal.hour, minute: meal.minute };
+    const trigger: Notifications.NotificationTriggerInput = {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: meal.hour,
+      minute: meal.minute,
+    };
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: meal.title,
         body,
         sound: true,
-        channelId: ANDROID_CHANNEL_ID,
       },
       trigger,
     });
@@ -144,13 +155,15 @@ async function scheduleDailySummary() {
     // ignore parse errors
   }
 
-  const summaryTrigger = { type: "date", date: target };
+  const summaryTrigger: Notifications.NotificationTriggerInput = {
+    type: Notifications.SchedulableTriggerInputTypes.DATE,
+    date: target,
+  };
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "📊 Daily Nutrition Summary",
       body: `Today: ${kcal} kcal, ${protein}g protein.`,
       sound: true,
-      channelId: ANDROID_CHANNEL_ID,
     },
     trigger: summaryTrigger,
   });
@@ -173,13 +186,15 @@ async function scheduleWorkoutReminder() {
     workout?.message ||
     (title.toUpperCase().includes("REST") ? "Recovery day." : "Get moving!");
 
-  const workoutTrigger = { type: "date", date: target };
+  const workoutTrigger: Notifications.NotificationTriggerInput = {
+    type: Notifications.SchedulableTriggerInputTypes.DATE,
+    date: target,
+  };
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: `🏋️ ${title}`,
       body,
       sound: true,
-      channelId: ANDROID_CHANNEL_ID,
     },
     trigger: workoutTrigger,
   });
@@ -188,8 +203,7 @@ async function scheduleWorkoutReminder() {
   console.log("Scheduled workout reminder:", target.toISOString());
 }
 
-async function cancelTodoNotifications(todoId: string) {
-  const key = `${STORAGE_KEYS.todoIdsPrefix}${todoId}`;
+async function cancelTodoNotificationsByKey(key: string) {
   const raw = await AsyncStorage.getItem(key);
   if (!raw) return;
   const ids = JSON.parse(raw) as string[];
@@ -197,7 +211,7 @@ async function cancelTodoNotifications(todoId: string) {
   await AsyncStorage.removeItem(key);
 }
 
-async function scheduleTodoNotifications(todo: any, groupId: string) {
+async function scheduleTodoNotifications(todo: any, groupId: string, key: string) {
   const taskDate = new Date(todo.time);
   taskDate.setSeconds(0, 0);
 
@@ -214,14 +228,16 @@ async function scheduleTodoNotifications(todo: any, groupId: string) {
   for (const stage of stages) {
     const triggerTime = new Date(taskDate.getTime() - stage.minutes * 60000);
     if (triggerTime.getTime() > bufferTime) {
-      const todoTrigger = { type: "date", date: triggerTime };
+      const todoTrigger: Notifications.NotificationTriggerInput = {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerTime,
+      };
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: `${stage.label}: ${todo.name}`,
           body: stage.msg,
           data: { taskId: groupId, todoId: todo.id },
           sound: true,
-          channelId: ANDROID_CHANNEL_ID,
         },
         trigger: todoTrigger,
       });
@@ -229,12 +245,9 @@ async function scheduleTodoNotifications(todo: any, groupId: string) {
     }
   }
 
-  await AsyncStorage.setItem(
-    `${STORAGE_KEYS.todoIdsPrefix}${todo.id}`,
-    JSON.stringify(ids),
-  );
+  await AsyncStorage.setItem(key, JSON.stringify(ids));
   console.log(
-    `Scheduled todo reminders for ${todo.id}: ${ids.length} triggers`,
+    `Scheduled todo reminders for ${groupId}/${todo.id}: ${ids.length} triggers`,
   );
 }
 
@@ -242,11 +255,12 @@ async function syncTodoReminders() {
   const raw = await AsyncStorage.getItem("@task_groups");
   const groups = raw ? JSON.parse(raw) : [];
 
-  const activeTodoIds = new Set<string>();
+  const activeTodoKeys = new Set<string>();
   for (const group of groups) {
-    if (!group.todos) continue;
-    for (const todo of group.todos) {
-      activeTodoIds.add(todo.id);
+    if (group.completed || !group.todos) continue;
+    for (let index = 0; index < group.todos.length; index += 1) {
+      const todo = group.todos[index];
+      activeTodoKeys.add(getTodoNotificationKey(group.id, todo.id, index));
     }
   }
 
@@ -256,23 +270,24 @@ async function syncTodoReminders() {
   );
 
   for (const key of todoKeys) {
-    const todoId = key.replace(STORAGE_KEYS.todoIdsPrefix, "");
-    if (!activeTodoIds.has(todoId)) {
-      await cancelTodoNotifications(todoId);
-      console.log("Cancelled stale todo reminders:", todoId);
+    if (!activeTodoKeys.has(key)) {
+      await cancelTodoNotificationsByKey(key);
+      console.log("Cancelled stale todo reminders:", key);
     }
   }
 
   for (const group of groups) {
     if (group.completed) continue;
-    for (const todo of group.todos || []) {
+    for (let index = 0; index < (group.todos || []).length; index += 1) {
+      const todo = group.todos[index];
+      const key = getTodoNotificationKey(group.id, todo.id, index);
       if (todo.completed) {
-        await cancelTodoNotifications(todo.id);
+        await cancelTodoNotificationsByKey(key);
         continue;
       }
-      await cancelTodoNotifications(todo.id);
+      await cancelTodoNotificationsByKey(key);
       if (todo.time) {
-        await scheduleTodoNotifications(todo, group.id);
+        await scheduleTodoNotifications(todo, group.id, key);
       }
     }
   }

@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  AppState,
   Linking,
   Platform,
   ScrollView,
@@ -13,6 +15,8 @@ import {
 } from "react-native";
 import { getDayName, getWorkoutForDate } from "../../utils/workoutPlan";
 
+const WORKOUT_TIMER_STORAGE_KEY = "@work_timer_state";
+
 export default function WorkScreen() {
   // --- NEW TIMER LOGIC ---
   const [seconds, setSeconds] = useState(0);
@@ -20,14 +24,66 @@ export default function WorkScreen() {
   const [restSeconds, setRestSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
 
-  const workoutInterval = useRef<NodeJS.Timeout | null>(null);
-  const restInterval = useRef<NodeJS.Timeout | null>(null);
+  const workoutInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const restInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const workoutStartMsRef = useRef<number | null>(null);
+  const secondsRef = useRef(0);
+
+  useEffect(() => {
+    secondsRef.current = seconds;
+  }, [seconds]);
+
+  const persistWorkoutTimerState = useCallback(async (
+    active: boolean,
+    elapsedSeconds: number,
+    startMs: number | null,
+  ) => {
+    try {
+      await AsyncStorage.setItem(
+        WORKOUT_TIMER_STORAGE_KEY,
+        JSON.stringify({
+          isActive: active,
+          elapsedSeconds,
+          startMs,
+        }),
+      );
+    } catch {
+      console.log("Workout timer state save failed");
+    }
+  }, []);
+
+  const getElapsedFromStart = useCallback(() => {
+    if (!workoutStartMsRef.current) return secondsRef.current;
+    return Math.max(0, Math.floor((Date.now() - workoutStartMsRef.current) / 1000));
+  }, []);
+
+  useEffect(() => {
+    const restoreTimerState = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(WORKOUT_TIMER_STORAGE_KEY);
+        if (!raw) return;
+
+        const saved = JSON.parse(raw);
+        if (saved?.isActive && typeof saved?.startMs === "number") {
+          workoutStartMsRef.current = saved.startMs;
+          setSeconds(Math.max(0, Math.floor((Date.now() - saved.startMs) / 1000)));
+          setIsActive(true);
+        } else if (typeof saved?.elapsedSeconds === "number") {
+          setSeconds(saved.elapsedSeconds);
+        }
+      } catch {
+        console.log("Workout timer state load failed");
+      }
+    };
+
+    restoreTimerState();
+  }, []);
 
   // Total Workout Stopwatch
   useEffect(() => {
     if (isActive) {
       workoutInterval.current = setInterval(() => {
-        setSeconds((prev) => prev + 1);
+        setSeconds(getElapsedFromStart());
       }, 1000);
     } else {
       if (workoutInterval.current) clearInterval(workoutInterval.current);
@@ -35,7 +91,19 @@ export default function WorkScreen() {
     return () => {
       if (workoutInterval.current) clearInterval(workoutInterval.current);
     };
-  }, [isActive]);
+  }, [getElapsedFromStart, isActive]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && workoutStartMsRef.current) {
+        const elapsed = getElapsedFromStart();
+        setSeconds(elapsed);
+        persistWorkoutTimerState(true, elapsed, workoutStartMsRef.current);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [getElapsedFromStart, persistWorkoutTimerState]);
 
   // Rest Timer
   useEffect(() => {
@@ -90,7 +158,21 @@ export default function WorkScreen() {
                 styles.playBtn,
                 isActive && { backgroundColor: "#FF9500" },
               ]}
-              onPress={() => setIsActive(!isActive)}
+              onPress={() => {
+                if (isActive) {
+                  const elapsed = getElapsedFromStart();
+                  workoutStartMsRef.current = null;
+                  setSeconds(elapsed);
+                  setIsActive(false);
+                  persistWorkoutTimerState(false, elapsed, null);
+                  return;
+                }
+
+                const startMs = Date.now() - seconds * 1000;
+                workoutStartMsRef.current = startMs;
+                setIsActive(true);
+                persistWorkoutTimerState(true, seconds, startMs);
+              }}
             >
               <Feather
                 name={isActive ? "pause" : "play"}
@@ -104,6 +186,8 @@ export default function WorkScreen() {
               onPress={() => {
                 setSeconds(0);
                 setIsActive(false);
+                workoutStartMsRef.current = null;
+                persistWorkoutTimerState(false, 0, null);
               }}
             >
               <Feather name="refresh-cw" size={20} color="white" />
@@ -134,7 +218,7 @@ export default function WorkScreen() {
         </View>
 
         {/* 4. EXERCISES LIST (UNTOUCHED) */}
-        <Text style={styles.sectionLabel}>TODAY'S EXERCISES</Text>
+        <Text style={styles.sectionLabel}>TODAYS EXERCISES</Text>
         {currentWorkout.exercises.length > 0 ? (
           currentWorkout.exercises.map((ex: any, i: number) => (
             <TouchableOpacity

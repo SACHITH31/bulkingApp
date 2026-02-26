@@ -28,7 +28,7 @@ export default function LoadingScreen() {
       duration: 5000,
       useNativeDriver: false,
     }).start();
-  }, []);
+  }, [fadeAnim, progressAnim, scaleAnim]);
 
   const progressBarWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -77,17 +77,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // logoWrapper: {
-  //   width: 150,
-  //   height: 150,
-  //   marginBottom: 20,
-  //   // Adds a glow effect matching the logo colors
-  //   shadowColor: "#00FFCC",
-  //   shadowOffset: { width: 0, height: 0 },
-  //   shadowOpacity: 0.6,
-  //   shadowRadius: 20,
-  //   elevation: 15,
-  // },
+  logoWrapper: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
   // logoImage: { width: "100%", height: "100%", borderRadius: 80 },
   appName: {
     color: "white",

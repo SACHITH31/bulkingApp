@@ -260,7 +260,7 @@ export default function FoodScreen() {
       } else if (savedPlan) {
         setDietPlan(JSON.parse(savedPlan));
       }
-    } catch (e) {
+    } catch {
       console.log("Error loading food data");
     } finally {
       setLoading(false);
@@ -293,7 +293,7 @@ export default function FoodScreen() {
 
       // This ensures your 10:30 PM notification is always accurate!
       await syncAllNotifications();
-    } catch (e) {
+    } catch {
       console.log("Error saving food data");
     }
   };

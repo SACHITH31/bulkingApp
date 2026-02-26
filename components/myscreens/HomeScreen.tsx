@@ -41,7 +41,7 @@ export default function HomeScreen({ onEditTask }: any) {
     try {
       const saved = await AsyncStorage.getItem("@task_groups");
       if (saved) setAllTaskGroups(JSON.parse(saved));
-    } catch (e) {
+    } catch {
       console.log("Error loading tasks");
     }
   };
